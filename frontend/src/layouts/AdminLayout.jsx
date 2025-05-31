@@ -44,7 +44,7 @@ const AdminLayout = () => {
           borderRadius: '1px',
           transition: 'all 0.3s ease',
           transform: isOpen ? 'rotate(45deg) translate(5px, 5px)' : 'rotate(0deg) translate(0px, 0px)',
-          marginBottom: isOpen ? '0' : '4px'
+          marginBottom: isOpen ? '0' : '3px'
         }}
       />
       <span
@@ -75,19 +75,42 @@ const AdminLayout = () => {
 
   return (
     <div className="d-flex min-vh-100" style={{ backgroundColor: '#f8f9fa' }}>
+      {/* Floating Hamburger Button (when sidebar is collapsed) */}
+      {sidebarCollapsed && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '20px',
+            zIndex: 1001,
+            background: 'linear-gradient(135deg, #2c3e50, #34495e)',
+            borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+            padding: '8px'
+          }}
+        >
+          <HamburgerButton 
+            isOpen={false} 
+            onClick={() => setSidebarCollapsed(false)} 
+          />
+        </div>
+      )}
+
       {/* Sidebar */}
       <div 
         className="sidebar"
         style={{
-          width: sidebarCollapsed ? '70px' : '280px',
+          width: sidebarCollapsed ? '0px' : '280px',
           transition: 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
           position: 'fixed',
           height: '100vh',
           zIndex: 1000,
           background: 'linear-gradient(180deg, #2c3e50 0%, #34495e 100%)',
-          boxShadow: sidebarCollapsed ? '2px 0 10px rgba(0,0,0,0.1)' : '4px 0 20px rgba(0,0,0,0.15)',
-          borderRadius: '0 15px 15px 0',
-          overflow: 'hidden'
+          boxShadow: sidebarCollapsed ? 'none' : '4px 0 20px rgba(0,0,0,0.15)',
+          borderRadius: sidebarCollapsed ? '0' : '0 15px 15px 0',
+          overflow: 'hidden',
+          transform: sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0)',
+          opacity: sidebarCollapsed ? 0 : 1
         }}
       >
         <div className="d-flex flex-column h-100">
@@ -99,40 +122,38 @@ const AdminLayout = () => {
               borderBottom: '1px solid rgba(255,255,255,0.1)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: sidebarCollapsed ? 'center' : 'space-between',
+              justifyContent: 'space-between',
               minHeight: '80px'
             }}
           >
-            {!sidebarCollapsed && (
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    backgroundColor: '#3498db',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '12px',
-                    fontSize: '20px',
-                    color: 'white',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  Q
-                </div>
-                <div>
-                  <h5 className="mb-0" style={{ color: '#fff', fontSize: '18px', fontWeight: '600' }}>
-                    Quiz Master
-                  </h5>
-                  <small style={{ color: '#bdc3c7', fontSize: '12px' }}>Admin Panel</small>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: '#3498db',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '12px',
+                  fontSize: '20px',
+                  color: 'white',
+                  fontWeight: 'bold'
+                }}
+              >
+                Q
               </div>
-            )}
+              <div>
+                <h5 className="mb-0" style={{ color: '#fff', fontSize: '18px', fontWeight: '600' }}>
+                  Quiz Master
+                </h5>
+                <small style={{ color: '#bdc3c7', fontSize: '12px' }}>Admin Panel</small>
+              </div>
+            </div>
             <HamburgerButton 
-              isOpen={!sidebarCollapsed} 
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)} 
+              isOpen={true} 
+              onClick={() => setSidebarCollapsed(true)} 
             />
           </div>
           
@@ -146,14 +167,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -168,7 +188,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Dashboard' : ''}
               >
                 <i 
                   className="bi bi-speedometer2" 
@@ -178,11 +197,9 @@ const AdminLayout = () => {
                     color: '#3498db'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Dashboard
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Dashboard
+                </span>
               </NavLink>
               
               <NavLink 
@@ -191,14 +208,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -213,7 +229,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Subjects' : ''}
               >
                 <i 
                   className="bi bi-book" 
@@ -223,11 +238,9 @@ const AdminLayout = () => {
                     color: '#e74c3c'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Subjects
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Subjects
+                </span>
               </NavLink>
               
               <NavLink 
@@ -236,14 +249,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -258,7 +270,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Chapters' : ''}
               >
                 <i 
                   className="bi bi-list-columns" 
@@ -268,11 +279,9 @@ const AdminLayout = () => {
                     color: '#f39c12'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Chapters
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Chapters
+                </span>
               </NavLink>
               
               <NavLink 
@@ -281,14 +290,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -303,7 +311,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Quizzes' : ''}
               >
                 <i 
                   className="bi bi-question-circle" 
@@ -313,11 +320,9 @@ const AdminLayout = () => {
                     color: '#9b59b6'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Quizzes
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Quizzes
+                </span>
               </NavLink>
               
               <NavLink 
@@ -326,14 +331,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -348,7 +352,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Questions' : ''}
               >
                 <i 
                   className="bi bi-patch-question" 
@@ -358,11 +361,9 @@ const AdminLayout = () => {
                     color: '#1abc9c'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Questions
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Questions
+                </span>
               </NavLink>
               
               <NavLink 
@@ -371,14 +372,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -393,7 +393,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Users' : ''}
               >
                 <i 
                   className="bi bi-people" 
@@ -403,11 +402,9 @@ const AdminLayout = () => {
                     color: '#34495e'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Users
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Users
+                </span>
               </NavLink>
               
               <NavLink 
@@ -416,14 +413,13 @@ const AdminLayout = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: sidebarCollapsed ? '15px 0' : '15px 20px',
-                  margin: sidebarCollapsed ? '8px 10px' : '8px 20px',
+                  padding: '15px 20px',
+                  margin: '8px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   color: '#ecf0f1',
                   transition: 'all 0.3s ease',
                   position: 'relative',
-                  justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                   minHeight: '50px'
                 }}
                 onMouseEnter={(e) => {
@@ -438,7 +434,6 @@ const AdminLayout = () => {
                     e.currentTarget.style.transform = 'translateX(0px)';
                   }
                 }}
-                title={sidebarCollapsed ? 'Reports' : ''}
               >
                 <i 
                   className="bi bi-bar-chart" 
@@ -448,11 +443,9 @@ const AdminLayout = () => {
                     color: '#e67e22'
                   }}
                 />
-                {!sidebarCollapsed && (
-                  <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                    Reports
-                  </span>
-                )}
+                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
+                  Reports
+                </span>
               </NavLink>
             </div>
           </nav>
@@ -468,7 +461,7 @@ const AdminLayout = () => {
               onClick={handleLogout}
               style={{
                 width: '100%',
-                padding: sidebarCollapsed ? '15px 0' : '15px 20px',
+                padding: '15px 20px',
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
                 border: '1px solid rgba(231, 76, 60, 0.3)',
                 borderRadius: '12px',
@@ -477,7 +470,6 @@ const AdminLayout = () => {
                 transition: 'all 0.3s ease',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
                 fontSize: '15px',
                 fontWeight: '500'
               }}
@@ -489,10 +481,9 @@ const AdminLayout = () => {
                 e.target.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
                 e.target.style.transform = 'translateY(0px)';
               }}
-              title={sidebarCollapsed ? 'Logout' : ''}
             >
               <i className="bi bi-box-arrow-right" style={{ fontSize: '20px', minWidth: '20px' }} />
-              {!sidebarCollapsed && <span style={{ marginLeft: '15px' }}>Logout</span>}
+              <span style={{ marginLeft: '15px' }}>Logout</span>
             </button>
           </div>
         </div>
@@ -502,10 +493,10 @@ const AdminLayout = () => {
       <div 
         className="main-content"
         style={{
-          marginLeft: sidebarCollapsed ? '70px' : '280px',
+          marginLeft: sidebarCollapsed ? '0px' : '280px',
           transition: 'margin-left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
           minHeight: '100vh',
-          width: `calc(100% - ${sidebarCollapsed ? '70px' : '280px'})`,
+          width: sidebarCollapsed ? '100%' : 'calc(100% - 280px)',
           backgroundColor: '#f8f9fa'
         }}
       >
@@ -514,7 +505,7 @@ const AdminLayout = () => {
           style={{
             backgroundColor: '#fff',
             boxShadow: '0 2px 20px rgba(0,0,0,0.08)',
-            padding: '20px 30px',
+            padding: sidebarCollapsed ? '20px 30px 20px 80px' : '20px 30px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -522,12 +513,13 @@ const AdminLayout = () => {
             top: 0,
             zIndex: 100,
             borderBottom: '1px solid #e9ecef',
-            borderRadius: '0 0 15px 15px'
+            borderRadius: '0 0 15px 15px',
+            transition: 'padding 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)'
           }}
         >
           <div>
-            <h4 className="mb-1" style={{ color: '#2c3e50', fontWeight: '600' }}>
-              Admin Dashboard
+            <h4 className="mb-1"  style={{ color: '#2c3e50', fontWeight: '600' }}>
+             Quiz Master
             </h4>
             <small style={{ color: '#7f8c8d' }}>Manage your quiz application</small>
           </div>

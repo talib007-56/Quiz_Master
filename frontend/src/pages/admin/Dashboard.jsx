@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { subjectsAPI, chaptersAPI, quizzesAPI, questionsAPI, scoresAPI } from '../../services/api';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -24,6 +24,7 @@ const AdminDashboard = () => {
   const [currentQuiz, setCurrentQuiz] = useState(null);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [view, setView] = useState('subjects'); // 'subjects', 'quizzes', 'summary'
+  const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0); // Force re-render trigger
   
   // Form states
   const [subjectForm, setSubjectForm] = useState({ name: '', description: '' });
@@ -98,6 +99,7 @@ const AdminDashboard = () => {
       setQuizzes(quizzesRes.data || []);
       setQuestions(questionsRes.data || []);
       setScores(scoresRes.data || []);
+      
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -206,6 +208,7 @@ const AdminDashboard = () => {
       
       const response = await questionsAPI.create(questionData);
       console.log('Question created successfully:', response.data);
+      console.log('About to refresh data...');
       
       setQuestionForm({
         chapter_id: '',
@@ -221,7 +224,12 @@ const AdminDashboard = () => {
       setShowQuestionModal(false);
       setCurrentQuiz(null);
       console.log('Question created successfully, refreshing data...');
-      fetchData();
+      
+      // Add a small delay to ensure backend processing is complete
+      setTimeout(() => {
+        console.log('Calling fetchData after question creation...');
+        fetchData();
+      }, 100);
     } catch (error) {
       console.error('Error creating question:', error);
       console.error('Error response:', error.response?.data);
@@ -237,7 +245,11 @@ const AdminDashboard = () => {
         console.log('Deleting question with ID:', questionId);
         await questionsAPI.delete(questionId);
         console.log('Question deleted successfully');
-        fetchData(); // Refresh the data
+        
+        // Add a small delay to ensure backend processing is complete
+        setTimeout(() => {
+          fetchData();
+        }, 100);
       } catch (error) {
         console.error('Error deleting question:', error);
         alert('Error deleting question: ' + (error.response?.data?.message || error.message));
@@ -305,7 +317,11 @@ const AdminDashboard = () => {
       setShowEditQuestionModal(false);
       setCurrentQuestion(null);
       console.log('Question updated successfully, refreshing data...');
-      fetchData();
+      
+      // Add a small delay to ensure backend processing is complete
+      setTimeout(() => {
+        fetchData();
+      }, 100);
     } catch (error) {
       console.error('Error updating question:', error);
       console.error('Error response:', error.response?.data);
@@ -324,7 +340,14 @@ const AdminDashboard = () => {
   };
 
   const getQuizzesByChapter = (chapterId) => {
-    const result = quizzes.filter(quiz => quiz.chapter_id === chapterId);
+    const result = quizzes.filter(quiz => {
+      const quizChapterId = typeof quiz.chapter_id === 'object' 
+        ? quiz.chapter_id._id || quiz.chapter_id.toString()
+        : quiz.chapter_id;
+      return quizChapterId === chapterId || 
+             quizChapterId === String(chapterId) || 
+             String(quizChapterId) === String(chapterId);
+    });
     console.log(`getQuizzesByChapter(${chapterId}) returning:`, result);
     console.log('All quizzes:', quizzes);
     return result;
@@ -351,13 +374,59 @@ const AdminDashboard = () => {
     return result;
   };
 
-  const getQuestionCountForChapter = (chapterId) => {
-    const chapterQuizzes = getQuizzesByChapter(chapterId);
-    let totalQuestions = 0;
-    chapterQuizzes.forEach(quiz => {
-      totalQuestions += getQuestionsByQuiz(quiz._id).length;
+  // Calculate question counts for all chapters using useMemo
+  const chapterQuestionCounts = useMemo(() => {
+    console.log('\n=== CALCULATING CHAPTER QUESTION COUNTS ===');
+    console.log('Questions array:', questions);
+    console.log('Quizzes array:', quizzes);
+    console.log('Chapters array:', chapters);
+    
+    const counts = {};
+    
+    chapters.forEach(chapter => {
+      const chapterQuizzes = quizzes.filter(quiz => {
+        const quizChapterId = typeof quiz.chapter_id === 'object' 
+          ? quiz.chapter_id._id || quiz.chapter_id.toString()
+          : quiz.chapter_id;
+        return quizChapterId === chapter._id || 
+               quizChapterId === String(chapter._id) || 
+               String(quizChapterId) === String(chapter._id);
+      });
+      console.log(`Chapter "${chapter.name}" (${chapter._id}) has ${chapterQuizzes.length} quizzes`);
+      
+      let totalQuestions = 0;
+      
+      chapterQuizzes.forEach(quiz => {
+        const quizQuestions = questions.filter(question => {
+          const questionQuizId = typeof question.quiz_id === 'object' 
+            ? question.quiz_id._id || question.quiz_id.toString()
+            : question.quiz_id;
+          
+          const matches = questionQuizId === quiz._id || 
+                         questionQuizId === String(quiz._id) || 
+                         String(questionQuizId) === String(quiz._id);
+          
+          if (matches) {
+            console.log(`  ✓ Question "${question.question_title}" matches quiz ${quiz._id}`);
+          }
+          
+          return matches;
+        });
+        
+        console.log(`  Quiz ${quiz._id} has ${quizQuestions.length} questions`);
+        totalQuestions += quizQuestions.length;
+      });
+      
+      counts[chapter._id] = totalQuestions;
+      console.log(`Final count for chapter "${chapter.name}": ${totalQuestions}`);
     });
-    return totalQuestions;
+    
+    console.log('Final chapter counts:', counts);
+    return counts;
+  }, [questions, quizzes, chapters]);
+
+  const getQuestionCountForChapter = (chapterId) => {
+    return chapterQuestionCounts[chapterId] || 0;
   };
 
   const handleDeleteSubject = async (id) => {
@@ -524,8 +593,10 @@ const AdminDashboard = () => {
                 {subjectChapters.length > 0 ? (
                   subjectChapters.map(chapter => {
                     const questionCount = getQuestionCountForChapter(chapter._id);
+                    console.log(`Displaying chapter "${chapter.name}" with count: ${questionCount}`);
+                    
                     return (
-                      <div key={chapter._id} style={{
+                      <div key={`${chapter._id}-${questionCount}`} style={{
                         display: 'flex',
                         alignItems: 'center',
                         padding: '12px 0',
@@ -630,6 +701,32 @@ const AdminDashboard = () => {
       }}>
         All subjects here ...
       </div>
+
+      {/* Temporary Debug Button */}
+      <button 
+        onClick={() => {
+          console.log('=== MANUAL DEBUG CHECK ===');
+          console.log('Current Questions:', questions.length);
+          console.log('Current Quizzes:', quizzes.length);
+          console.log('Current Chapters:', chapters.length);
+          console.log('Chapter Question Counts:', chapterQuestionCounts);
+          
+          // Force a re-calculation
+          console.log('Forcing data fetch...');
+          fetchData();
+        }}
+        style={{
+          backgroundColor: '#dc3545',
+          color: 'white',
+          border: 'none',
+          borderRadius: '8px',
+          padding: '10px 20px',
+          marginBottom: '20px',
+          cursor: 'pointer'
+        }}
+      >
+        Debug Question Counts
+      </button>
 
       {/* Add Subject Button (Orange Circle) */}
       <div style={{
