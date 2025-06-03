@@ -461,297 +461,505 @@ const AdminDashboard = () => {
     setShowEditChapterModal(true);
   };
 
-  // Navigation bar component - exactly like wireframe
+  // Modern Navigation bar component
   const NavigationBar = () => (
     <div style={{
-      backgroundColor: '#e8f4f8',
-      border: '2px solid #007bff',
-      borderRadius: '15px',
-      padding: '15px 20px',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      borderRadius: '20px',
+      padding: '20px 30px',
       marginBottom: '30px',
       display: 'flex',
       justifyContent: 'space-between',
-      alignItems: 'center'
+      alignItems: 'center',
+      boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
+      border: 'none'
     }}>
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <span 
-          style={{ 
-            color: view === 'subjects' ? '#007bff' : '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('subjects')}
-        >
-          Home
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: view === 'quizzes' ? '#007bff' : '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('quizzes')}
-        >
-          Quiz
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: view === 'summary' ? '#007bff' : '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('summary')}
-        >
-          Summary
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-        >
-          Logout
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <input 
-          type="text" 
-          placeholder="Search" 
-          style={{
-            padding: '8px 12px',
-            border: '2px solid #007bff',
-            borderRadius: '8px',
-            width: '150px'
-          }}
-        />
-        {/* <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '16px' }}>
-          Welcome Admin
-        </span> */}
-      </div>
-    </div>
-  );
-
-  // Subjects view component - exactly matching wireframe with proper table
-  const SubjectsView = () => (
-    <div style={{ position: 'relative' }}>
-      <div style={{ display: 'flex', gap: '30px', marginBottom: '20px' }}>
-        {subjects.map(subject => {
-          const subjectChapters = getChaptersBySubject(subject._id);
-          console.log(`Subject ${subject.name} (${subject._id}) has chapters:`, subjectChapters);
-          
-          return (
-            <div key={subject._id} style={{
-              width: '45%',
-              border: '2px solid #000',
-              borderRadius: '15px',
-              backgroundColor: '#fff'
-            }}>
-              {/* Subject Header */}
-              <div style={{
-                textAlign: 'center',
-                padding: '15px',
-                borderBottom: '1px solid #ccc',
-                fontSize: '24px',
-                fontWeight: 'bold'
-              }}>
-                {subject.name}
-              </div>
-
-              {/* Table Header - Fixed to match data row layout */}
-              <div style={{
-                backgroundColor: '#007bff',
-                color: 'white',
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        {[
+          { key: 'subjects', label: 'Home', icon: '🏠' },
+          { key: 'quizzes', label: 'Quiz', icon: '📝' },
+          { key: 'summary', label: 'Summary', icon: '📊' }
+        ].map((item, index) => (
+          <div key={item.key}>
+            <button
+              onClick={() => setView(item.key)}
+              style={{
+                background: view === item.key 
+                  ? 'rgba(255, 255, 255, 0.25)' 
+                  : 'transparent',
+                border: view === item.key 
+                  ? '2px solid rgba(255, 255, 255, 0.3)' 
+                  : '2px solid transparent',
+                borderRadius: '12px',
                 padding: '12px 20px',
-                margin: '15px',
-                borderRadius: '8px',
+                color: '#fff',
+                cursor: 'pointer',
+                fontWeight: view === item.key ? '600' : '500',
+                fontSize: '15px',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 display: 'flex',
                 alignItems: 'center',
-                fontWeight: 'bold',
-                fontSize: '14px'
-              }}>
-                <div style={{ width: '40%', textAlign: 'left' }}>
-                  Chapter name
-                </div>
-                <div style={{ width: '25%', textAlign: 'center' }}>
-                  No.of Questions
-                </div>
-                <div style={{ width: '35%', textAlign: 'center' }}>
-                  Action
-                </div>
-              </div>
-
-              {/* Chapter Rows - Fixed alignment and padding */}
-              <div style={{ padding: '0 20px', minHeight: '120px', margin: '0 15px' }}>
-                {subjectChapters.length > 0 ? (
-                  subjectChapters.map(chapter => {
-                    const questionCount = getQuestionCountForChapter(chapter._id);
-                    console.log(`Displaying chapter "${chapter.name}" with count: ${questionCount}`);
-                    
-                    return (
-                      <div key={`${chapter._id}-${questionCount}`} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '12px 0',
-                        borderBottom: '1px solid #eee',
-                        fontSize: '14px'
-                      }}>
-                        <div style={{ 
-                          fontWeight: 'bold', 
-                          width: '40%', 
-                          textAlign: 'left',
-                          paddingRight: '8px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {chapter.name}
-                        </div>
-                        <div style={{ 
-                          width: '25%', 
-                          textAlign: 'center',
-                          fontWeight: '500'
-                        }}>
-                          {questionCount}
-                        </div>
-                        <div style={{ 
-                          width: '35%', 
-                          textAlign: 'center',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          gap: '8px'
-                        }}>
-                          <span 
-                            style={{ 
-                              color: '#007bff', 
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              fontSize: '14px'
-                            }}
-                            onClick={() => handleEditChapterClick(chapter)}
-                          >
-                            Edit
-                          </span>
-                          <span style={{ color: '#666' }}>/</span>
-                          <span 
-                            style={{ 
-                              color: '#dc3545', 
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              fontSize: '14px'
-                            }}
-                            onClick={() => handleDeleteChapter(chapter._id)}
-                          >
-                            Delete
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div style={{
-                    textAlign: 'center',
-                    color: '#666',
-                    fontStyle: 'italic',
-                    padding: '40px 0'
-                  }}>
-                    No chapters yet. Click "+ Chapter" to add one.
-                  </div>
-                )}
-              </div>
-
-              {/* Add Chapter Button */}
-              <div style={{ textAlign: 'center', padding: '20px' }}>
-                <button 
-                  style={{
-                    backgroundColor: '#ffc107',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 15px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}
-                  onClick={() => {
-                    setCurrentSubject(subject);
-                    setChapterForm({ name: '', description: '', subject_id: subject._id });
-                    setShowChapterModal(true);
-                  }}
-                >
-                  + Chapter
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                gap: '8px',
+                backdropFilter: view === item.key ? 'blur(10px)' : 'none',
+                boxShadow: view === item.key 
+                  ? '0 4px 15px rgba(255, 255, 255, 0.1)' 
+                  : 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (view !== item.key) {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (view !== item.key) {
+                  e.target.style.background = 'transparent';
+                  e.target.style.transform = 'translateY(0px)';
+                  e.target.style.boxShadow = 'none';
+                }
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          </div>
+        ))}
       </div>
-
-      {/* All subjects here text */}
-      <div style={{ 
-        color: '#007bff', 
-        fontSize: '18px', 
-        fontStyle: 'italic',
-        marginBottom: '20px'
-      }}>
-        All subjects here ...
-      </div>
-
-      {/* Temporary Debug Button */}
-      <button 
-        onClick={() => {
-          console.log('=== MANUAL DEBUG CHECK ===');
-          console.log('Current Questions:', questions.length);
-          console.log('Current Quizzes:', quizzes.length);
-          console.log('Current Chapters:', chapters.length);
-          console.log('Chapter Question Counts:', chapterQuestionCounts);
-          
-          // Force a re-calculation
-          console.log('Forcing data fetch...');
-          fetchData();
-        }}
-        style={{
-          backgroundColor: '#dc3545',
-          color: 'white',
-          border: 'none',
-          borderRadius: '8px',
-          padding: '10px 20px',
-          marginBottom: '20px',
-          cursor: 'pointer'
-        }}
-      >
-        Debug Question Counts
-      </button>
-
-      {/* Add Subject Button (Orange Circle) */}
-      <div style={{
-        position: 'fixed',
-        bottom: '30px',
-        right: '30px',
-        width: '60px',
-        height: '60px',
-        backgroundColor: '#ff8c00',
-        borderRadius: '50%',
-        border: '3px solid #000',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer',
-        fontSize: '30px',
-        fontWeight: 'bold',
-        color: '#000'
-      }}
-      onClick={() => setShowSubjectModal(true)}
-      >
-        +
+      
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* Enhanced Search Bar */}
+        <div style={{ position: 'relative' }}>
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            style={{
+              background: 'rgba(255, 255, 255, 0.84)',
+              border: '2px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '25px',
+              padding: '12px 20px 12px 45px',
+              color: '#fff',
+              fontSize: '14px',
+              width: '220px',
+              outline: 'none',
+              transition: 'all 0.3s ease',
+              backdropFilter: 'blur(10px)'
+            }}
+            onFocus={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.83)';
+              e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+              e.target.style.transform = 'scale(1.02)';
+            }}
+            onBlur={(e) => {
+              e.target.style.background = 'rgba(255, 255, 255, 0.84)';
+              e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+              e.target.style.transform = 'scale(1)';
+            }}
+          />
+          <span style={{
+            position: 'absolute',
+            left: '15px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: '16px'
+          }}>
+            🔍
+          </span>
+        </div>
+        
+        {/* Admin Profile */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          background: 'rgba(255, 255, 255, 0.15)',
+          padding: '10px 16px',
+          borderRadius: '50px',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            width: '35px',
+            height: '35px',
+            background: 'linear-gradient(135deg, #ff6b6b, #feca57)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+          }}>
+            👨‍💼
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ 
+              color: '#fff', 
+              fontWeight: '600', 
+              fontSize: '14px',
+              lineHeight: '1.2'
+            }}>
+              Admin
+            </span>
+            <span style={{ 
+              color: 'rgba(255, 255, 255, 0.8)', 
+              fontSize: '12px',
+              lineHeight: '1.2'
+            }}>
+              Dashboard
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
+
+  // Modern Subjects view component
+  const SubjectsView = () => {
+    return (
+      <div style={{ position: 'relative' }}>
+        <style>{`
+          .subject-card {
+            background: #ffffff;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e9ecef;
+            position: relative;
+            min-height: 400px;
+            cursor: pointer;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+            transition: transform 0.2s ease;
+          }
+          
+          .subject-card:hover {
+            transform: translate3d(0, -8px, 0);
+          }
+          
+          .chapter-row {
+            display: grid;
+            grid-template-columns: 1fr 120px 140px;
+            align-items: center;
+            gap: 20px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            border: 1px solid #e9ecef;
+            cursor: pointer;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+            transition: transform 0.15s ease;
+            margin-bottom: 8px;
+          }
+          
+          .chapter-row:hover {
+            transform: translate3d(4px, 0, 0);
+          }
+          
+          .chapter-row-even {
+            background: #f8f9fa;
+          }
+          
+          .chapter-row-odd {
+            background: #ffffff;
+          }
+          
+          .action-button {
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.1s ease;
+            will-change: transform;
+            transform: translate3d(0, 0, 0);
+          }
+          
+          .action-button:hover {
+            transform: translate3d(0, -1px, 0);
+          }
+          
+          .edit-button {
+            background: #3498db;
+          }
+          
+          .delete-button {
+            background: #e74c3c;
+          }
+        `}</style>
+        
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+          gap: '30px', 
+          marginBottom: '30px' 
+        }}>
+          {subjects.map(subject => {
+            const subjectChapters = getChaptersBySubject(subject._id);
+            
+            return (
+              <div key={subject._id} className="subject-card">
+                {/* Simple Subject Header */}
+                <div style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  padding: '24px 30px',
+                  color: 'white'
+                }}>
+                  <h3 style={{
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <span style={{
+                      fontSize: '28px',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      padding: '8px 12px',
+                      borderRadius: '12px'
+                    }}>
+                      📚
+                    </span>
+                    {subject.name}
+                  </h3>
+                </div>
+
+                {/* Simple Table Header */}
+                <div style={{
+                  background: '#f8f9fa',
+                  padding: '20px 30px',
+                  borderBottom: '1px solid #e9ecef'
+                }}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 120px 140px',
+                    alignItems: 'center',
+                    gap: '20px'
+                  }}>
+                    <div style={{
+                      fontWeight: '600',
+                      fontSize: '16px',
+                      color: '#495057'
+                    }}>
+                      📖 Chapter Name
+                    </div>
+                    <div style={{
+                      fontWeight: '600',
+                      fontSize: '16px',
+                      color: '#495057',
+                      textAlign: 'center'
+                    }}>
+                      Questions
+                    </div>
+                    <div style={{
+                      fontWeight: '600',
+                      fontSize: '16px',
+                      color: '#495057',
+                      textAlign: 'center'
+                    }}>
+                      ⚙️ Actions
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chapter Rows */}
+                <div style={{ 
+                  padding: '20px 30px',
+                  minHeight: '200px',
+                  background: '#fff'
+                }}>
+                  {subjectChapters.length > 0 ? (
+                    <div>
+                      {subjectChapters.map((chapter, index) => {
+                        const questionCount = getQuestionCountForChapter(chapter._id);
+                        
+                        return (
+                          <div 
+                            key={`${chapter._id}-${questionCount}`} 
+                            className={`chapter-row ${index % 2 === 0 ? 'chapter-row-even' : 'chapter-row-odd'}`}
+                          >
+                            <div style={{ 
+                              fontWeight: '600',
+                              fontSize: '16px',
+                              color: '#2c3e50',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '12px'
+                            }}>
+                              <div style={{
+                                width: '8px',
+                                height: '8px',
+                                background: '#667eea',
+                                borderRadius: '50%'
+                              }} />
+                              <span style={{ 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {chapter.name}
+                              </span>
+                            </div>
+                            
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'center'
+                            }}>
+                              <div style={{
+                                background: questionCount > 0 ? '#28a745' : '#ffc107',
+                                color: '#fff',
+                                padding: '6px 14px',
+                                borderRadius: '16px',
+                                fontWeight: '700',
+                                fontSize: '14px',
+                                minWidth: '40px',
+                                textAlign: 'center'
+                              }}>
+                                {questionCount}
+                              </div>
+                            </div>
+                            
+                            <div style={{ 
+                              display: 'flex',
+                              gap: '8px',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditChapterClick(chapter);
+                                }}
+                                className="action-button edit-button"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteChapter(chapter._id);
+                                }}
+                                className="action-button delete-button"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '60px 20px',
+                      background: '#f8f9fa',
+                      borderRadius: '16px',
+                      border: '2px dashed #dee2e6'
+                    }}>
+                      <div style={{ fontSize: '48px', marginBottom: '16px' }}>📚</div>
+                      <div style={{
+                        color: '#6c757d',
+                        fontSize: '16px',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                      }}>
+                        No chapters yet
+                      </div>
+                      <div style={{
+                        color: '#adb5bd',
+                        fontSize: '14px'
+                      }}>
+                        Click the button below to add your first chapter
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Simple Add Chapter Button */}
+                <div style={{ 
+                  padding: '20px 30px',
+                  borderTop: '1px solid #e9ecef',
+                  background: '#f8f9fa'
+                }}>
+                  <button 
+                    onClick={() => {
+                      setCurrentSubject(subject);
+                      setChapterForm({ name: '', description: '', subject_id: subject._id });
+                      setShowChapterModal(true);
+                    }}
+                    style={{
+                      background: '#28a745',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px 24px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '15px',
+                      width: '100%',
+                      transition: 'transform 0.1s ease',
+                      willChange: 'transform',
+                      transform: 'translate3d(0, 0, 0)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translate3d(0, -2px, 0)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translate3d(0, 0, 0)';
+                    }}
+                  >
+                    ➕ Add New Chapter
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Simple Floating Add Button */}
+        <div style={{
+          position: 'fixed',
+          bottom: '30px',
+          right: '30px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={() => setShowSubjectModal(true)}
+            style={{
+              width: '60px',
+              height: '60px',
+              background: '#ff6b6b',
+              borderRadius: '50%',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '24px',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+              transition: 'transform 0.1s ease',
+              willChange: 'transform',
+              transform: 'translate3d(0, 0, 0)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translate3d(0, -3px, 0) scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translate3d(0, 0, 0) scale(1)';
+            }}
+          >
+            ➕
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   // Quiz Management view
   const QuizManagementView = () => (
@@ -1228,16 +1436,171 @@ const AdminDashboard = () => {
 
   return (
     <div style={{ padding: '20px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-      {/* Main Title */}
-      <h1 style={{ 
-        textAlign: 'center', 
-        color: '#007bff', 
-        marginBottom: '30px',
-        fontSize: '32px',
-        fontWeight: 'bold'
+      {/* Enhanced Main Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%)',
+        borderRadius: '24px',
+        padding: '40px 30px',
+        marginBottom: '40px',
+        position: 'relative',
+        overflow: 'hidden',
+        boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
+        border: '1px solid rgba(255, 255, 255, 0.1)'
       }}>
-        Admin Dashboard
-      </h1>
+        {/* Background Decorative Elements */}
+        <div style={{
+          position: 'absolute',
+          top: '-50px',
+          right: '-50px',
+          width: '200px',
+          height: '200px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+        
+        <div style={{
+          position: 'absolute',
+          bottom: '-30px',
+          left: '-30px',
+          width: '150px',
+          height: '150px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
+          borderRadius: '50%'
+        }} />
+        
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%)',
+          borderRadius: '50%',
+          zIndex: 0
+        }} />
+        
+        {/* Header Content */}
+        <div style={{
+          position: 'relative',
+          zIndex: 1,
+          textAlign: 'center'
+        }}>
+          {/* Main Title */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '20px',
+            marginBottom: '16px'
+          }}>
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              padding: '16px',
+              borderRadius: '20px',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
+            }}>
+              <span style={{
+                fontSize: '48px',
+                filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
+              }}>
+                🎯
+              </span>
+            </div>
+            
+            <h1 style={{
+              color: '#fff',
+              fontSize: 'clamp(32px, 5vw, 48px)',
+              fontWeight: '800',
+              margin: 0,
+              textShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+              letterSpacing: '-0.02em',
+              background: 'linear-gradient(45deg, #ffffff, #f0f0f0)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              Quiz Master
+            </h1>
+            
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              padding: '16px',
+              borderRadius: '20px',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
+            }}>
+              <span style={{
+                fontSize: '48px',
+                filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
+              }}>
+                📚
+              </span>
+            </div>
+          </div>
+          
+          {/* Subtitle */}
+          <div style={{
+            color: 'rgba(255, 255, 255, 0.9)',
+            fontSize: '18px',
+            fontWeight: '500',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+            marginBottom: '24px',
+            letterSpacing: '0.5px'
+          }}>
+            Administrative Dashboard
+          </div>
+          
+          {/* Feature Pills */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            {[
+              { icon: '📝', text: 'Create Quizzes' },
+              { icon: '📊', text: 'Track Performance' },
+              { icon: '👥', text: 'Manage Users' },
+              { icon: '⚙️', text: 'System Control' }
+            ].map((feature, index) => (
+              <div key={index} style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '25px',
+                padding: '8px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '14px',
+                color: 'rgba(255, 255, 255, 0.95)',
+                fontWeight: '500',
+                transition: 'all 0.2s ease',
+                cursor: 'pointer',
+                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.25)';
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.target.style.transform = 'translateY(0px)';
+                e.target.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+              }}
+              >
+                <span style={{ fontSize: '16px' }}>{feature.icon}</span>
+                <span>{feature.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
       
       <NavigationBar />
       
