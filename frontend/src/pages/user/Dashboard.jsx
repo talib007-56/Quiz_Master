@@ -29,6 +29,7 @@ const UserDashboard = () => {
   const [timer, setTimer] = useState(null);
   const [showQuizView, setShowQuizView] = useState(false);
   const [selectedQuizView, setSelectedQuizView] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add submitting state
 
   useEffect(() => {
     fetchData();
@@ -37,7 +38,7 @@ const UserDashboard = () => {
   // Timer effect for quiz
   useEffect(() => {
     let interval = null;
-    if (view === 'quiz' && timer > 0) {
+    if (view === 'quiz' && timer > 0 && !isSubmitting) { // Don't run timer if submitting
       interval = setInterval(() => {
         setTimer(timer => {
           if (timer <= 1) {
@@ -51,8 +52,12 @@ const UserDashboard = () => {
         });
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, [view, timer]);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [view, timer, isSubmitting]); // Add isSubmitting to dependencies
 
   const fetchData = async () => {
     try {
@@ -145,7 +150,25 @@ const UserDashboard = () => {
     return subjects.find(s => s._id === targetId || s.id === targetId);
   };
 
+  const hasUserAttemptedQuiz = (quizId) => {
+    return userScores.some(score => {
+      // Handle both string IDs and populated objects, with null check
+      if (!score.quiz_id) return false; // Skip if quiz_id is null or undefined
+      
+      const scoreQuizId = typeof score.quiz_id === 'object' && score.quiz_id !== null 
+        ? score.quiz_id._id || score.quiz_id.id 
+        : score.quiz_id;
+      return scoreQuizId === quizId || scoreQuizId === String(quizId) || String(scoreQuizId) === String(quizId);
+    });
+  };
+
   const handleStartQuiz = (quiz) => {
+    // Check if user has already attempted this quiz
+    if (hasUserAttemptedQuiz(quiz._id)) {
+      alert('You have already attempted this quiz! Check your scores to see your results.');
+      return;
+    }
+
     const quizQuestions = getQuestionsByQuiz(quiz._id);
     if (quizQuestions.length === 0) {
       alert('No questions available for this quiz');
@@ -156,6 +179,7 @@ const UserDashboard = () => {
     setCurrentQuestionIndex(0);
     setAnswers({});
     setTimer(quiz.time_duration * 60); // Convert minutes to seconds - using correct field
+    setIsSubmitting(false); // Reset submitting state
     setView('quiz');
   };
 
@@ -178,7 +202,9 @@ const UserDashboard = () => {
   };
 
   const handleSubmitQuiz = async () => {
-    if (!currentQuiz) return;
+    if (!currentQuiz || isSubmitting) return; // Prevent multiple submissions
+    
+    setIsSubmitting(true); // Set submitting state
     
     try {
       const quizQuestions = getQuestionsByQuiz(currentQuiz._id);
@@ -216,6 +242,9 @@ const UserDashboard = () => {
       // Submit to backend
       await scoresAPI.submitQuiz(scoreData);
       
+      // Stop the timer immediately
+      setTimer(0);
+      
       alert(`Quiz submitted successfully! You scored ${correctAnswers}/${quizQuestions.length} (${Math.round((correctAnswers/quizQuestions.length)*100)}%)`);
       
       // Reset quiz state
@@ -224,14 +253,26 @@ const UserDashboard = () => {
       setAnswers({});
       setTimer(null);
       setCurrentQuestionIndex(0);
+      setIsSubmitting(false);
       
       // Refresh data to show new score
       fetchData();
       
     } catch (error) {
       console.error('Error submitting quiz:', error);
+      setIsSubmitting(false); // Reset submitting state on error
+      
       if (error.response?.status === 400 && error.response?.data?.message?.includes('already attempted')) {
+        // Stop the timer for already attempted quiz
+        setTimer(0);
         alert('You have already attempted this quiz!');
+        
+        // Exit quiz mode
+        setView('dashboard');
+        setCurrentQuiz(null);
+        setAnswers({});
+        setTimer(null);
+        setCurrentQuestionIndex(0);
       } else {
         alert('Error submitting quiz: ' + (error.response?.data?.message || error.message));
       }
@@ -240,164 +281,161 @@ const UserDashboard = () => {
 
   // Navigation Bar Component - matching wireframe exactly
   const NavigationBar = () => (
-    <div style={{
-      backgroundColor: '#e8f4f8',
-      border: '2px solid #007bff',
-      borderRadius: '15px',
-      padding: '15px 20px',
-      marginBottom: '30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    }}>
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <span 
-          style={{ 
-            color: view === 'dashboard' ? '#007bff' : '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('dashboard')}
+    <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4" style={{ borderRadius: '12px', border: '1px solid #e9ecef' }}>
+      <div className="container-fluid px-4">
+
+        {/* Mobile Toggle Button */}
+        <button 
+          className="navbar-toggler border-0" 
+          type="button" 
+          data-bs-toggle="collapse" 
+          data-bs-target="#navbarNav"
+          style={{ boxShadow: 'none' }}
         >
-          Home
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: view === 'scores' ? '#007bff' : '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('scores')}
-        >
-          Scores
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: view === 'summary' ? '#007bff' : '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('summary')}
-        >
-          Summary
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={handleLogout}
-        >
-          Logout
-        </span>
+          <span className="navbar-toggler-icon"></span>
+        </button>
+
+        {/* Navigation Items */}
+        <div className="collapse navbar-collapse" id="navbarNav">
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+            <li className="nav-item">
+              <button
+                className={`nav-link btn btn-link px-3 py-2 rounded-pill me-2 ${view === 'dashboard' ? 'active bg-primary text-white' : 'text-dark'}`}
+                style={{ 
+                  border: 'none',
+                  fontWeight: '500',
+                  transition: 'all 0.3s ease',
+                  textDecoration: 'none'
+                }}
+                onClick={() => {
+                  if (view === 'quiz') {
+                    setCurrentQuiz(null);
+                    setTimer(null);
+                    setAnswers({});
+                    setCurrentQuestionIndex(0);
+                    setIsSubmitting(false);
+                  }
+                  setView('dashboard');
+                }}
+                onMouseEnter={(e) => {
+                  if (view !== 'dashboard') {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                    e.target.style.color = '#007bff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (view !== 'dashboard') {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#212529';
+                  }
+                }}
+              >
+                <i className="bi bi-house-door me-2"></i>
+                Dashboard
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                className={`nav-link btn btn-link px-3 py-2 rounded-pill me-2 ${view === 'scores' ? 'active bg-primary text-white' : 'text-dark'}`}
+                style={{ 
+                  border: 'none',
+                  fontWeight: '500',
+                  transition: 'all 0.3s ease',
+                  textDecoration: 'none'
+                }}
+                onClick={() => {
+                  if (view === 'quiz') {
+                    setCurrentQuiz(null);
+                    setTimer(null);
+                    setAnswers({});
+                    setCurrentQuestionIndex(0);
+                    setIsSubmitting(false);
+                  }
+                  setView('scores');
+                }}
+                onMouseEnter={(e) => {
+                  if (view !== 'scores') {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                    e.target.style.color = '#007bff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (view !== 'scores') {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#212529';
+                  }
+                }}
+              >
+                <i className="bi bi-bar-chart me-2"></i>
+                My Scores
+              </button>
+            </li>
+            <li className="nav-item">
+              <button
+                className={`nav-link btn btn-link px-3 py-2 rounded-pill me-2 ${view === 'summary' ? 'active bg-primary text-white' : 'text-dark'}`}
+                style={{ 
+                  border: 'none',
+                  fontWeight: '500',
+                  transition: 'all 0.3s ease',
+                  textDecoration: 'none'
+                }}
+                onClick={() => {
+                  if (view === 'quiz') {
+                    setCurrentQuiz(null);
+                    setTimer(null);
+                    setAnswers({});
+                    setCurrentQuestionIndex(0);
+                    setIsSubmitting(false);
+                  }
+                  setView('summary');
+                }}
+                onMouseEnter={(e) => {
+                  if (view !== 'summary') {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                    e.target.style.color = '#007bff';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (view !== 'summary') {
+                    e.target.style.backgroundColor = 'transparent';
+                    e.target.style.color = '#212529';
+                  }
+                }}
+              >
+                <i className="bi bi-pie-chart me-2"></i>
+                Analytics
+              </button>
+            </li>
+          </ul>
+
+          {/* Search Bar */}
+          <div className="d-flex align-items-center me-3">
+            <div className="input-group" style={{ width: '250px' }}>
+              <span className="input-group-text bg-light border-end-0" style={{ borderRadius: '12px 0 0 12px' }}>
+                <i className="bi bi-search text-muted"></i>
+              </span>
+              <input 
+                type="text" 
+                className="form-control border-start-0 bg-light"
+                placeholder="Search quizzes..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  borderRadius: '0 12px 12px 0',
+                  boxShadow: 'none',
+                  border: '1px solid #e9ecef'
+                }}
+              />
+            </div>
+          </div>
+
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <input 
-          type="text" 
-          placeholder="Search" 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            border: '2px solid #007bff',
-            borderRadius: '8px',
-            width: '150px'
-          }}
-        />
-        <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '16px' }}>
-          Welcome {currentUser?.full_name || 'User'}
-        </span>
-      </div>
-    </div>
+    </nav>
   );
 
-  // Scores Navigation Bar - for scores page
-  const ScoresNavigationBar = () => (
-    <div style={{
-      backgroundColor: '#e8f4f8',
-      border: '2px solid #007bff',
-      borderRadius: '15px',
-      padding: '15px 20px',
-      marginBottom: '30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    }}>
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-        <span 
-          style={{ 
-            color: '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('dashboard')}
-        >
-          Home
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: '#007bff',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-        >
-          Scores
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={() => setView('summary')}
-        >
-          Summary
-        </span>
-        <span style={{ color: '#6c757d' }}>|</span>
-        <span 
-          style={{ 
-            color: '#28a745',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px'
-          }}
-          onClick={handleLogout}
-        >
-          Logout
-        </span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <input 
-          type="text" 
-          placeholder="Search" 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            border: '2px solid #007bff',
-            borderRadius: '8px',
-            width: '150px'
-          }}
-        />
-        <span style={{ color: '#007bff', fontWeight: 'bold', fontSize: '16px' }}>
-          Welcome {currentUser?.full_name || 'User'}
-        </span>
-      </div>
-    </div>
-  );
+  // Use the same modern navigation bar for consistency
+  const ScoresNavigationBar = () => <NavigationBar />;
 
   // User Dashboard View - Available Quizzes
   const DashboardView = () => {
@@ -421,127 +459,159 @@ const UserDashboard = () => {
     const availableQuizzes = getAvailableQuizzes();
 
     return (
-      <div>
-        <div style={{
-          border: '2px solid #000',
-          borderRadius: '15px',
-          backgroundColor: '#fff',
-          marginBottom: '30px',
-          maxWidth: '800px'
-        }}>
-          {/* Header */}
-          <div style={{
-            textAlign: 'center',
-            padding: '15px',
-            borderBottom: '2px solid #000',
-            fontSize: '20px',
-            fontWeight: 'bold'
-          }}>
-            Available Quizzes
-          </div>
-
-          {/* Table Header */}
-          <div style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            padding: '12px 20px',
-            margin: '15px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            fontWeight: 'bold',
-            fontSize: '14px'
-          }}>
-            <div style={{ width: '8%', textAlign: 'center' }}>ID</div>
-            <div style={{ width: '20%', textAlign: 'center' }}>No.of Questions</div>
-            <div style={{ width: '20%', textAlign: 'center' }}>Date</div>
-            <div style={{ width: '22%', textAlign: 'center' }}>Duration(hh:mm)</div>
-            <div style={{ width: '30%', textAlign: 'center' }}>Action</div>
-          </div>
-
-          {/* Quiz Rows */}
-          <div style={{ padding: '0 20px', minHeight: '200px', margin: '0 15px' }}>
-            {availableQuizzes.length > 0 ? (
-              availableQuizzes.map((quiz, index) => {
-                const quizQuestions = getQuestionsByQuiz(quiz._id);
-                const chapter = getChapterById(quiz.chapter_id);
-                const subject = chapter ? getSubjectById(chapter.subject_id) : null;
-                
-                return (
-                  <div key={quiz._id} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '12px 0',
-                    borderBottom: '1px solid #eee',
-                    fontSize: '14px'
-                  }}>
-                    <div style={{ width: '8%', textAlign: 'center', fontWeight: 'bold' }}>
-                      {index + 1}
-                    </div>
-                    <div style={{ width: '20%', textAlign: 'center' }}>
-                      {quizQuestions.length.toString().padStart(2, '0')}
-                    </div>
-                    <div style={{ width: '20%', textAlign: 'center' }}>
-                      {quiz.date_of_quiz ? new Date(quiz.date_of_quiz).toLocaleDateString() : 'Available Now'}
-                    </div>
-                    <div style={{ width: '22%', textAlign: 'center' }}>
-                      {quiz.time_duration ? 
-                        `${Math.floor(quiz.time_duration / 60).toString().padStart(2, '0')}:${(quiz.time_duration % 60).toString().padStart(2, '0')}` 
-                        : '00:10'
-                      }
-                    </div>
-                    <div style={{ 
-                      width: '30%', 
-                      textAlign: 'center',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}>
-                      <button
-                        style={{ 
-                          backgroundColor: '#cce5ff',
-                          border: '1px solid #007bff',
-                          borderRadius: '6px',
-                          padding: '4px 12px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          color: '#007bff'
-                        }}
-                        onClick={() => handleViewQuiz(quiz)}
-                      >
-                        View
-                      </button>
-                      <button
-                        style={{ 
-                          backgroundColor: '#d4edda',
-                          border: '1px solid #28a745',
-                          borderRadius: '6px',
-                          padding: '4px 12px',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          color: '#28a745'
-                        }}
-                        onClick={() => handleStartQuiz(quiz)}
-                        title="Start quiz"
-                      >
-                        Start
-                      </button>
-                    </div>
+      <div className="container-fluid">
+        {/* Stats Cards Row */}
+        <div className="row mb-4">
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-journal-text text-primary fs-4"></i>
                   </div>
-                );
-              })
-            ) : (
-              <div style={{
-                textAlign: 'center',
-                color: '#666',
-                fontStyle: 'italic',
-                padding: '40px 0'
-              }}>
-                No quizzes available. Admin needs to create quizzes with questions!
+                </div>
+                <h5 className="card-title text-primary mb-1">{availableQuizzes.length}</h5>
+                <p className="card-text text-muted small">Available Quizzes</p>
               </div>
-            )}
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-check-circle text-success fs-4"></i>
+                  </div>
+                </div>
+                <h5 className="card-title text-success mb-1">{userScores.length}</h5>
+                <p className="card-text text-muted small">Completed Quizzes</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-info bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-book text-info fs-4"></i>
+                  </div>
+                </div>
+                <h5 className="card-title text-info mb-1">{subjects.length}</h5>
+                <p className="card-text text-muted small">Subjects Available</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm h-100">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-warning bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-trophy text-warning fs-4"></i>
+                  </div>
+                </div>
+                <h5 className="card-title text-warning mb-1">
+                  {userScores.length > 0 ? Math.round(userScores.reduce((acc, score) => acc + (score.total_scored || 0), 0) / userScores.length) : 0}%
+                </h5>
+                <p className="card-text text-muted small">Average Score</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Available Quizzes Section */}
+        <div className="card border-0 shadow-sm">
+          <div className="card-header bg-primary text-white">
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                <i className="bi bi-journal-text me-2"></i>Available Quizzes
+              </h5>
+              <span className="badge bg-light text-primary">{availableQuizzes.length} total</span>
+            </div>
+          </div>
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="bg-light">
+                  <tr>
+                    <th className="text-center" style={{ width: '8%' }}>#</th>
+                    <th className="text-center" style={{ width: '20%' }}>Questions</th>
+                    <th className="text-center" style={{ width: '20%' }}>Date</th>
+                    <th className="text-center" style={{ width: '22%' }}>Duration</th>
+                    <th className="text-center" style={{ width: '30%' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {availableQuizzes.length > 0 ? (
+                    availableQuizzes.map((quiz, index) => {
+                      const quizQuestions = getQuestionsByQuiz(quiz._id);
+                      const chapter = getChapterById(quiz.chapter_id);
+                      const subject = chapter ? getSubjectById(chapter.subject_id) : null;
+                      
+                      return (
+                        <tr key={quiz._id}>
+                          <td className="text-center fw-bold">{index + 1}</td>
+                          <td className="text-center">
+                            <span className="badge bg-info">{quizQuestions.length}</span>
+                          </td>
+                          <td className="text-center">
+                            <small className="text-muted">
+                              {quiz.date_of_quiz ? new Date(quiz.date_of_quiz).toLocaleDateString() : 'Available Now'}
+                            </small>
+                          </td>
+                          <td className="text-center">
+                            <span className="badge bg-secondary">
+                              {quiz.time_duration ? 
+                                `${Math.floor(quiz.time_duration / 60).toString().padStart(2, '0')}:${(quiz.time_duration % 60).toString().padStart(2, '0')}` 
+                                : '00:10'
+                              }
+                            </span>
+                          </td>
+                          <td className="text-center">
+                            <div className="btn-group btn-group-sm" role="group">
+                              <button
+                                type="button"
+                                className="btn btn-outline-primary"
+                                onClick={() => handleViewQuiz(quiz)}
+                                title="View quiz details"
+                              >
+                                <i className="bi bi-eye me-1"></i>View
+                              </button>
+                              {hasUserAttemptedQuiz(quiz._id) ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-secondary"
+                                  disabled
+                                  title="Already attempted"
+                                >
+                                  <i className="bi bi-check-circle me-1"></i>Completed
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline-success"
+                                  onClick={() => handleStartQuiz(quiz)}
+                                  title="Start quiz"
+                                >
+                                  <i className="bi bi-play-circle me-1"></i>Start
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center py-5 text-muted">
+                        <i className="bi bi-inbox fs-1 d-block mb-3"></i>
+                        <h5>No quizzes available</h5>
+                        <p className="mb-0">Check back later for new quizzes</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -691,34 +761,36 @@ const UserDashboard = () => {
         }}>
           <button
             onClick={handleSaveAndNext}
-            disabled={currentQuestionIndex >= quizQuestions.length - 1}
+            disabled={currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting}
             style={{
-              backgroundColor: currentQuestionIndex >= quizQuestions.length - 1 ? '#f0f0f0' : '#cce5ff',
+              backgroundColor: (currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting) ? '#f0f0f0' : '#cce5ff',
               border: '2px solid #007bff',
               borderRadius: '8px',
               padding: '10px 20px',
               fontSize: '16px',
               fontWeight: 'bold',
-              cursor: currentQuestionIndex >= quizQuestions.length - 1 ? 'not-allowed' : 'pointer',
-              opacity: currentQuestionIndex >= quizQuestions.length - 1 ? 0.6 : 1
+              cursor: (currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting) ? 'not-allowed' : 'pointer',
+              opacity: (currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting) ? 0.6 : 1
             }}
           >
             Save and Next
           </button>
           <button
             onClick={handleSubmitQuiz}
+            disabled={isSubmitting}
             style={{
-              backgroundColor: '#d4edda',
+              backgroundColor: isSubmitting ? '#f0f0f0' : '#d4edda',
               border: '2px solid #28a745',
               borderRadius: '8px',
               padding: '10px 20px',
               fontSize: '16px',
               fontWeight: 'bold',
-              cursor: 'pointer',
-              color: '#28a745'
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              color: isSubmitting ? '#666' : '#28a745',
+              opacity: isSubmitting ? 0.6 : 1
             }}
           >
-            Submit Quiz
+            {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
           </button>
         </div>
       </div>
@@ -730,8 +802,8 @@ const UserDashboard = () => {
     // Get user's scores with quiz and subject information
     const getUserScoresWithDetails = () => {
       return userScores.map(score => {
-        // Find the quiz for this score
-        const quiz = upcomingQuizzes.find(q => q._id === score.quiz_id);
+        // Find the quiz for this score - handle null quiz_id
+        const quiz = score.quiz_id ? upcomingQuizzes.find(q => q._id === score.quiz_id) : null;
         const chapter = quiz ? getChapterById(quiz.chapter_id) : null;
         const subject = chapter ? getSubjectById(chapter.subject_id) : null;
         
@@ -744,7 +816,7 @@ const UserDashboard = () => {
           quiz: quiz,
           chapter: chapter,
           subject: subject,
-          quizTitle: quiz?.title || (chapter?.name ? `Quiz - ${chapter.name}` : 'Unknown Quiz'),
+          quizTitle: quiz?.remarks || (chapter?.name ? `Quiz - ${chapter.name}` : 'Unknown Quiz'),
           subjectName: subject?.name || 'Unknown Subject',
           formattedDate: score.time_stamp_of_attempt ? new Date(score.time_stamp_of_attempt).toLocaleDateString() : 
                         (score.createdAt ? new Date(score.createdAt).toLocaleDateString() : 'N/A'),
@@ -783,89 +855,142 @@ const UserDashboard = () => {
     const displayScores = searchTerm ? filteredScores : scoresWithDetails;
 
     return (
-      <div>
+      <div className="container-fluid">
         {/* Search Info */}
-        <div style={{
-          color: '#28a745',
-          fontSize: '16px',
-          fontStyle: 'italic',
-          marginBottom: '20px',
-          textAlign: 'right'
-        }}>
-          Searching subjects/quizzes by date/scores
+        <div className="alert alert-info d-flex align-items-center mb-4">
+          <i className="bi bi-info-circle me-2"></i>
+          <span>Search across subjects, quizzes, dates, and scores using the search bar above</span>
         </div>
 
-        <div style={{
-          border: '2px solid #000',
-          borderRadius: '15px',
-          backgroundColor: '#fff',
-          marginBottom: '30px',
-          maxWidth: '600px'
-        }}>
-          {/* Header */}
-          <div style={{
-            textAlign: 'center',
-            padding: '15px',
-            borderBottom: '2px solid #000',
-            fontSize: '20px',
-            fontWeight: 'bold'
-          }}>
-            Quiz Scores
-          </div>
-
-          {/* Table Header */}
-          <div style={{
-            backgroundColor: '#007bff',
-            color: 'white',
-            padding: '12px 20px',
-            margin: '15px',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            fontWeight: 'bold',
-            fontSize: '14px'
-          }}>
-            <div style={{ width: '15%', textAlign: 'center' }}>ID</div>
-            <div style={{ width: '30%', textAlign: 'center' }}>No.of Questions</div>
-            <div style={{ width: '30%', textAlign: 'center' }}>Date</div>
-            <div style={{ width: '25%', textAlign: 'center' }}>Score</div>
-          </div>
-
-          {/* Score Rows */}
-          <div style={{ padding: '0 20px', minHeight: '200px', margin: '0 15px' }}>
-            {displayScores.length > 0 ? (
-              displayScores.map((score, index) => (
-                <div key={score._id || index} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '12px 0',
-                  borderBottom: '1px solid #eee',
-                  fontSize: '14px'
-                }}>
-                  <div style={{ width: '15%', textAlign: 'center', fontWeight: 'bold' }}>
-                    {index + 1}
-                  </div>
-                  <div style={{ width: '30%', textAlign: 'center' }}>
-                    {score.totalQuestions.toString().padStart(2, '0')}
-                  </div>
-                  <div style={{ width: '30%', textAlign: 'center' }}>
-                    {score.formattedDate}
-                  </div>
-                  <div style={{ width: '25%', textAlign: 'center', fontWeight: 'bold' }}>
-                    {score.scoreDisplay}
+        {/* Stats Row */}
+        <div className="row mb-4">
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-success bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-check-circle-fill text-success fs-4"></i>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div style={{
-                textAlign: 'center',
-                color: '#666',
-                fontStyle: 'italic',
-                padding: '40px 0'
-              }}>
-                {searchTerm ? `No scores found matching "${searchTerm}"` : 'No quiz scores yet. Take a quiz to see your results here!'}
+                <h4 className="text-success mb-1">{displayScores.length}</h4>
+                <p className="text-muted small mb-0">Attempts Made</p>
               </div>
-            )}
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-primary bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-percent text-primary fs-4"></i>
+                  </div>
+                </div>
+                <h4 className="text-primary mb-1">
+                  {displayScores.length > 0 ? 
+                    Math.round(displayScores.reduce((acc, score) => acc + score.percentage, 0) / displayScores.length) : 0}%
+                </h4>
+                <p className="text-muted small mb-0">Average Score</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-warning bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-trophy-fill text-warning fs-4"></i>
+                  </div>
+                </div>
+                <h4 className="text-warning mb-1">
+                  {displayScores.length > 0 ? Math.max(...displayScores.map(s => s.percentage)) : 0}%
+                </h4>
+                <p className="text-muted small mb-0">Best Score</p>
+              </div>
+            </div>
+          </div>
+          <div className="col-lg-3 col-md-6 mb-3">
+            <div className="card border-0 shadow-sm">
+              <div className="card-body text-center">
+                <div className="d-flex justify-content-center align-items-center mb-3">
+                  <div className="bg-info bg-opacity-10 rounded-circle p-3">
+                    <i className="bi bi-graph-up text-info fs-4"></i>
+                  </div>
+                </div>
+                <h4 className="text-info mb-1">
+                  {displayScores.length > 0 ? displayScores.reduce((acc, score) => acc + score.totalQuestions, 0) : 0}
+                </h4>
+                <p className="text-muted small mb-0">Total Questions</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scores Table */}
+        <div className="card border-0 shadow-sm">
+          <div className="card-header bg-primary text-white">
+            <div className="d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                <i className="bi bi-trophy me-2"></i>Quiz Scores
+              </h5>
+              <span className="badge bg-light text-primary">{displayScores.length} scores</span>
+            </div>
+          </div>
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="bg-light">
+                  <tr>
+                    <th className="text-center" style={{ width: '10%' }}>#</th>
+                    <th className="text-center" style={{ width: '25%' }}>Quiz</th>
+                    <th className="text-center" style={{ width: '20%' }}>Subject</th>
+                    <th className="text-center" style={{ width: '15%' }}>Questions</th>
+                    <th className="text-center" style={{ width: '15%' }}>Date</th>
+                    <th className="text-center" style={{ width: '15%' }}>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayScores.length > 0 ? (
+                    displayScores.map((score, index) => (
+                      <tr key={score._id || index}>
+                        <td className="text-center fw-bold">{index + 1}</td>
+                        <td className="text-center">
+                          <span className="text-truncate d-inline-block" style={{ maxWidth: '150px' }} title={score.quizTitle}>
+                            {score.quizTitle}
+                          </span>
+                        </td>
+                        <td className="text-center">
+                          <span className="badge bg-secondary">{score.subjectName}</span>
+                        </td>
+                        <td className="text-center">
+                          <span className="badge bg-info">{score.totalQuestions}</span>
+                        </td>
+                        <td className="text-center">
+                          <small className="text-muted">{score.formattedDate}</small>
+                        </td>
+                        <td className="text-center">
+                          <div className="d-flex align-items-center justify-content-center">
+                            <span className={`badge ${score.percentage >= 80 ? 'bg-success' : score.percentage >= 60 ? 'bg-warning' : 'bg-danger'} me-2`}>
+                              {score.percentage}%
+                            </span>
+                            <small className="text-muted">({score.scoreDisplay})</small>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="6" className="text-center py-5 text-muted">
+                        <i className="bi bi-inbox fs-1 d-block mb-3"></i>
+                        <h5>{searchTerm ? `No scores found matching "${searchTerm}"` : 'No quiz scores yet'}</h5>
+                        <p className="mb-0">
+                          {searchTerm ? 'Try a different search term' : 'Take a quiz to see your results here!'}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -874,54 +999,45 @@ const UserDashboard = () => {
 
   // Summary Charts View
   const SummaryView = () => {
-    // Calculate subject-wise quiz attempts and scores from real data
+    // Calculate subject-wise quiz attempts from real data
     const getSubjectWiseData = () => {
       const subjectData = {};
       
+      // Get subject-wise quiz attempts from user scores
       userScores.forEach(score => {
-        const quiz = upcomingQuizzes.find(q => q._id === score.quiz_id);
+        // Handle null quiz_id
+        if (!score.quiz_id) return;
+        
+        // Find the quiz that was attempted
+        const quiz = upcomingQuizzes.find(q => {
+          const scoreQuizId = typeof score.quiz_id === 'object' && score.quiz_id !== null 
+            ? score.quiz_id._id || score.quiz_id.id 
+            : score.quiz_id;
+          return q._id === scoreQuizId || q._id === String(scoreQuizId) || String(q._id) === String(scoreQuizId);
+        });
+        
         if (quiz) {
+          // Get chapter and subject information
           const chapter = getChapterById(quiz.chapter_id);
           if (chapter) {
             const subject = getSubjectById(chapter.subject_id);
             if (subject) {
               if (!subjectData[subject.name]) {
                 subjectData[subject.name] = {
-                  attempts: 0,
-                  totalScore: 0,
-                  totalQuestions: 0
+                  attempts: 0
                 };
               }
-              
               subjectData[subject.name].attempts += 1;
-              subjectData[subject.name].totalScore += score.total_scored || 0;
-              
-              // Calculate total questions for this quiz
-              const quizQuestions = getQuestionsByQuiz(quiz._id);
-              subjectData[subject.name].totalQuestions += quizQuestions.length;
             }
           }
         }
       });
       
-      // Calculate average scores
-      const subjectAverages = {};
-      Object.keys(subjectData).forEach(subjectName => {
-        const data = subjectData[subjectName];
-        subjectAverages[subjectName] = data.totalQuestions > 0 
-          ? Math.round((data.totalScore / data.totalQuestions) * 100)
-          : 0;
-      });
-      
-      // If no real data, use sample data
+      // If no real data, show a message chart
       if (Object.keys(subjectData).length === 0) {
         return {
           attempts: {
-            labels: ['No Data Available'],
-            data: [0]
-          },
-          averages: {
-            labels: ['No Data Available'],
+            labels: ['No Quizzes Attempted'],
             data: [0]
           }
         };
@@ -931,10 +1047,6 @@ const UserDashboard = () => {
         attempts: {
           labels: Object.keys(subjectData),
           data: Object.values(subjectData).map(d => d.attempts)
-        },
-        averages: {
-          labels: Object.keys(subjectAverages),
-          data: Object.values(subjectAverages)
         }
       };
     };
@@ -957,7 +1069,7 @@ const UserDashboard = () => {
       // If no real data, show message
       if (Object.keys(monthlyAttempts).length === 0) {
         return {
-          labels: ['No Data Available'],
+          labels: ['No Quizzes Attempted'],
           data: [0]
         };
       }
@@ -977,17 +1089,7 @@ const UserDashboard = () => {
       datasets: [{
         label: 'Number of Quizzes Attempted',
         data: subjectData.attempts.data,
-        backgroundColor: ['#36A2EB', '#4BC0C0', '#FFCE56', '#FF6384', '#9966FF', '#FF9F40']
-      }]
-    };
-
-    // Subject wise average scores data
-    const subjectScoresChartData = {
-      labels: subjectData.averages.labels,
-      datasets: [{
-        label: 'Average Score (%)',
-        data: subjectData.averages.data,
-        backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14']
+        backgroundColor: ['#36A2EB', '#4BC0C0', '#FFCE56', '#FF6384', '#9966FF', '#FF9F40', '#C9CBCF', '#4BC0C0', '#FF6384']
       }]
     };
 
@@ -996,20 +1098,20 @@ const UserDashboard = () => {
       labels: monthlyAttemptsData.labels,
       datasets: [{
         data: monthlyAttemptsData.data,
-        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
       }]
     };
 
     return (
       <div>
-        <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', marginBottom: '30px' }}>
+        <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '30px' }}>
           {/* Subject-wise Attempts */}
           <div style={{
-            width: '45%',
+            width: '48%',
             border: '2px solid #000',
             borderRadius: '15px',
             backgroundColor: '#fff',
-            minWidth: '400px'
+            minWidth: '450px'
           }}>
             <div style={{
               backgroundColor: '#007bff',
@@ -1022,7 +1124,7 @@ const UserDashboard = () => {
             }}>
               Subject wise no.of quizzes attempted
             </div>
-            <div style={{ padding: '20px', height: '300px' }}>
+            <div style={{ padding: '20px', height: '350px' }}>
               <Bar 
                 data={subjectAttemptsChartData} 
                 options={{ 
@@ -1050,66 +1152,13 @@ const UserDashboard = () => {
             </div>
           </div>
           
-          {/* Subject-wise Average Scores */}
+          {/* Monthly Attempts */}
           <div style={{
-            width: '45%',
+            width: '48%',
             border: '2px solid #000',
             borderRadius: '15px',
             backgroundColor: '#fff',
-            minWidth: '400px'
-          }}>
-            <div style={{
-              backgroundColor: '#28a745',
-              color: 'white',
-              padding: '15px',
-              borderRadius: '13px 13px 0 0',
-              textAlign: 'center',
-              fontWeight: 'bold',
-              fontSize: '18px'
-            }}>
-              Subject wise average scores
-            </div>
-            <div style={{ padding: '20px', height: '300px' }}>
-              <Bar 
-                data={subjectScoresChartData} 
-                options={{ 
-                  responsive: true, 
-                  maintainAspectRatio: false,
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      max: 100,
-                      ticks: {
-                        stepSize: 10,
-                        callback: function(value) {
-                          return value + '%';
-                        }
-                      }
-                    }
-                  },
-                  plugins: {
-                    tooltip: {
-                      callbacks: {
-                        label: function(context) {
-                          return `Average Score: ${context.parsed.y}%`;
-                        }
-                      }
-                    }
-                  }
-                }} 
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Monthly Attempts */}
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <div style={{
-            width: '45%',
-            border: '2px solid #000',
-            borderRadius: '15px',
-            backgroundColor: '#fff',
-            minWidth: '400px'
+            minWidth: '450px'
           }}>
             <div style={{
               backgroundColor: '#6f42c1',
@@ -1129,7 +1178,7 @@ const UserDashboard = () => {
               justifyContent: 'center',
               alignItems: 'center'
             }}>
-              <div style={{ width: '280px', height: '280px' }}>
+              <div style={{ width: '300px', height: '300px' }}>
                 <Pie 
                   data={monthlyAttemptsChartData} 
                   options={{ 
@@ -1361,31 +1410,49 @@ const UserDashboard = () => {
   }
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-      {/* Main Title */}
-      <h1 style={{ 
-        textAlign: 'center', 
-        color: '#007bff', 
-        marginBottom: '30px',
-        fontSize: '32px',
-        fontWeight: 'bold'
-      }}>
-        {view === 'quiz' ? 'Quiz in Progress' : 
-         view === 'scores' ? 'Scores' :
-         view === 'summary' ? 'Summary Charts' : 'User Dashboard'}
-      </h1>
-      
-      {/* Navigation */}
-      {view === 'scores' ? <ScoresNavigationBar /> : <NavigationBar />}
-      
-      {/* Content Views */}
-      {view === 'dashboard' && <DashboardView />}
-      {view === 'quiz' && <QuizView />}
-      {view === 'scores' && <ScoresView />}
-      {view === 'summary' && <SummaryView />}
-      
-      {/* Quiz View Modal */}
-      <QuizViewModal />
+    <div className="min-vh-100 bg-light">
+      <div className="container-fluid p-4">
+        {/* Page Header */}
+        <div className="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
+          <h1 className="text-primary fw-bold mb-3 mb-md-0">
+            <i className={`bi ${
+              view === 'quiz' ? 'bi-play-circle' : 
+              view === 'scores' ? 'bi-trophy' :
+              view === 'summary' ? 'bi-graph-up' : 'bi-speedometer2'
+            } me-2`}></i>
+            {view === 'quiz' ? 'Quiz in Progress' : 
+             view === 'scores' ? 'Quiz Scores' :
+             view === 'summary' ? 'Performance Summary' : 'Dashboard'}
+          </h1>
+          {view !== 'quiz' && (
+            <div className="d-flex align-items-center gap-2 text-muted">
+              <i className="bi bi-calendar3"></i>
+              <span>{new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</span>
+            </div>
+          )}
+        </div>
+        
+        {/* Navigation */}
+        {view === 'scores' ? <ScoresNavigationBar /> : <NavigationBar />}
+        
+        {/* Content Views */}
+        <div className="row">
+          <div className="col-12">
+            {view === 'dashboard' && <DashboardView />}
+            {view === 'quiz' && <QuizView />}
+            {view === 'scores' && <ScoresView />}
+            {view === 'summary' && <SummaryView />}
+          </div>
+        </div>
+        
+        {/* Quiz View Modal */}
+        <QuizViewModal />
+      </div>
     </div>
   );
 };

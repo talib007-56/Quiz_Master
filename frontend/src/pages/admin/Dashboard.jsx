@@ -868,12 +868,6 @@ const AdminDashboard = () => {
                         fontWeight: '500',
                         marginBottom: '8px'
                       }}>
-                        No chapters yet
-                      </div>
-                      <div style={{
-                        color: '#adb5bd',
-                        fontSize: '14px'
-                      }}>
                         Click the button below to add your first chapter
                       </div>
                     </div>
@@ -986,7 +980,7 @@ const AdminDashboard = () => {
                 fontWeight: 'bold',
                 backgroundColor: '#f8f9fa'
               }}>
-                Quiz{quiz.title ? `(${quiz.title})` : chapter?.name ? `(${chapter.name})` : ''}
+                Quiz{quiz.chapter_id?.name ? ` (${quiz.chapter_id.name})` : chapter?.name ? ` (${chapter.name})` : ''}
               </div>
 
               {/* Table Header - Exactly matching wireframe */}
@@ -1739,7 +1733,17 @@ const AdminDashboard = () => {
                       onChange={(e) => setQuizForm({...quizForm, duration: e.target.value})}
                       required
                     />
-                    <small className="text-muted">Note: may include more input fields...</small>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Title/Remarks :</label>
+                    <input 
+                      type="text" 
+                      className="form-control"
+                      placeholder="Enter quiz title or remarks"
+                      value={quizForm.title}
+                      onChange={(e) => setQuizForm({...quizForm, title: e.target.value})}
+                    />
+                    <small className="text-muted">Optional: Enter a title or remarks for this quiz</small>
                   </div>
                 </div>
                 <div className="modal-footer">
@@ -1754,160 +1758,592 @@ const AdminDashboard = () => {
 
       {/* Question Modal */}
       {showQuestionModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header bg-info text-white">
-                <h5 className="modal-title">New Question</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => {
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#fff',
+            border: '3px solid #000',
+            borderRadius: '20px',
+            padding: '0',
+            width: '700px',
+            maxWidth: '95vw',
+            maxHeight: '95vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+          }}>
+            {/* Header */}
+            <div style={{
+              backgroundColor: '#ffc107',
+              color: '#000',
+              padding: '20px 30px',
+              borderRadius: '17px 17px 0 0',
+              textAlign: 'center',
+              fontWeight: 'bold',
+              fontSize: '22px',
+              borderBottom: '2px solid #000',
+              position: 'relative'
+            }}>
+              <span style={{ marginRight: '10px', fontSize: '24px' }}>📝</span>
+              New Question
+              <button
+                type="button"
+                onClick={() => {
                   setShowQuestionModal(false);
                   setCurrentQuiz(null);
-                }}></button>
-              </div>
-              <form onSubmit={handleCreateQuestion}>
-                <div className="modal-body">
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Chapter :</label>
-                      <select 
-                        className="form-select"
-                        value={questionForm.chapter_id}
-                        onChange={(e) => {
-                          const selectedChapterId = e.target.value;
-                          setQuestionForm({...questionForm, chapter_id: selectedChapterId, quiz_id: ''});
-                        }}
-                        required
-                      >
-                        <option value="">Select Chapter</option>
-                        {chapters.map(chapter => (
-                          <option key={chapter._id} value={chapter._id}>{chapter.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Quiz :</label>
-                      {/* Show quiz info if opened from quiz card */}
-                      {currentQuiz ? (
-                        <div>
-                          <input 
-                            type="text" 
-                            className="form-control" 
-                            value={`Quiz for ${chapters.find(c => c._id === currentQuiz.chapter_id)?.name || 'Unknown Chapter'}`}
-                            readOnly
-                            style={{ backgroundColor: '#e9ecef' }}
-                          />
-                          <small className="text-muted">Adding question to this quiz</small>
-                        </div>
-                      ) : (
-                        <select 
-                          className="form-select"
-                          value={questionForm.quiz_id}
-                          onChange={(e) => setQuestionForm({...questionForm, quiz_id: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Quiz</option>
-                          {questionForm.chapter_id && getQuizzesByChapter(questionForm.chapter_id).map(quiz => {
-                            const chapterName = chapters.find(c => c._id === quiz.chapter_id)?.name || 'Unknown';
-                            return (
-                              <option key={quiz._id} value={quiz._id}>
-                                {quiz.title || `Quiz - ${chapterName}`}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Question Title :</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
-                      value={questionForm.question_title}
-                      onChange={(e) => setQuestionForm({...questionForm, question_title: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Question Statement :</label>
-                    <textarea 
-                      className="form-control"
-                      rows="3"
-                      value={questionForm.question_statement}
-                      onChange={(e) => setQuestionForm({...questionForm, question_statement: e.target.value})}
-                      required
-                    ></textarea>
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#000',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateQuestion}>
+              <div style={{ padding: '35px' }}>
+                {/* Chapter ID Row */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginBottom: '25px',
+                  gap: '20px'
+                }}>
+                  <label style={{ 
+                    color: '#007bff', 
+                    fontWeight: 'bold', 
+                    fontSize: '16px',
+                    minWidth: '160px',
+                    textAlign: 'left'
+                  }}>
+                    Chapter ID :
+                  </label>
+                  <select 
+                    style={{
+                      flex: 1,
+                      padding: '12px 15px',
+                      border: '2px solid #007bff',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      backgroundColor: '#fff',
+                      outline: 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                    value={questionForm.chapter_id}
+                    onChange={(e) => {
+                      const selectedChapterId = e.target.value;
+                      setQuestionForm({...questionForm, chapter_id: selectedChapterId, quiz_id: ''});
+                    }}
+                    required
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#0056b3';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(0, 123, 255, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#007bff';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  >
+                    <option value="">Select Chapter</option>
+                    {chapters.map(chapter => (
+                      <option key={chapter._id} value={chapter._id}>{chapter.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Quiz ID Row (Hidden field but still functional) */}
+                <input 
+                  type="hidden"
+                  value={questionForm.quiz_id || currentQuiz?._id || ''}
+                />
+
+                {/* Question Title Row */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginBottom: '25px',
+                  gap: '20px'
+                }}>
+                  <label style={{ 
+                    color: '#007bff', 
+                    fontWeight: 'bold', 
+                    fontSize: '16px',
+                    minWidth: '160px',
+                    textAlign: 'left'
+                  }}>
+                    Question Title :
+                  </label>
+                  <input 
+                    type="text" 
+                    style={{
+                      flex: 1,
+                      padding: '12px 15px',
+                      border: '2px solid #007bff',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      outline: 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                    value={questionForm.question_title}
+                    onChange={(e) => setQuestionForm({...questionForm, question_title: e.target.value})}
+                    required
+                    placeholder="Enter question title..."
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#0056b3';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(0, 123, 255, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#007bff';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+
+                {/* Question Statement Row */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  marginBottom: '35px',
+                  gap: '20px'
+                }}>
+                  <label style={{ 
+                    color: '#007bff', 
+                    fontWeight: 'bold', 
+                    fontSize: '16px',
+                    minWidth: '160px',
+                    textAlign: 'left',
+                    paddingTop: '12px'
+                  }}>
+                    Question Statement :
+                  </label>
+                  <textarea 
+                    style={{
+                      flex: 1,
+                      padding: '15px',
+                      border: '2px solid #007bff',
+                      borderRadius: '10px',
+                      fontSize: '15px',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                    value={questionForm.question_statement}
+                    onChange={(e) => setQuestionForm({...questionForm, question_statement: e.target.value})}
+                    required
+                    placeholder="Enter the detailed question statement..."
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#0056b3';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(0, 123, 255, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#007bff';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                  />
+                </div>
+                
+                {/* Single Option Correct Section */}
+                <div style={{
+                  border: '3px solid #000',
+                  borderRadius: '18px',
+                  padding: '25px',
+                  marginBottom: '35px',
+                  backgroundColor: '#fafafa',
+                  overflow: 'hidden' // Prevent overflow
+                }}>
+                  <div style={{
+                    backgroundColor: '#ffc107',
+                    color: '#000',
+                    fontWeight: 'bold',
+                    fontSize: '18px',
+                    textAlign: 'center',
+                    marginBottom: '25px',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <span style={{ marginRight: '8px' }}>🎯</span>
+                    Single Option Correct
                   </div>
                   
-                  <div className="border p-3 mb-3">
-                    <h6 className="text-warning">Single Option Correct</h6>
-                    <div className="row">
-                      <div className="col-md-6 mb-2">
-                        <label className="form-label">Option 1) :</label>
-                        <input 
-                          type="text" 
-                          className="form-control"
-                          value={questionForm.option1}
-                          onChange={(e) => setQuestionForm({...questionForm, option1: e.target.value})}
-                          required
-                        />
-                      </div>
-                      <div className="col-md-6 mb-2">
-                        <label className="form-label">Option 2) :</label>
-                        <input 
-                          type="text" 
-                          className="form-control"
-                          value={questionForm.option2}
-                          onChange={(e) => setQuestionForm({...questionForm, option2: e.target.value})}
-                          required
-                        />
-                      </div>
-                      <div className="col-md-6 mb-2">
-                        <label className="form-label">Option 3) :</label>
-                        <input 
-                          type="text" 
-                          className="form-control"
-                          value={questionForm.option3}
-                          onChange={(e) => setQuestionForm({...questionForm, option3: e.target.value})}
-                          required
-                        />
-                      </div>
-                      <div className="col-md-6 mb-2">
-                        <label className="form-label">Option 4) :</label>
-                        <input 
-                          type="text" 
-                          className="form-control"
-                          value={questionForm.option4}
-                          onChange={(e) => setQuestionForm({...questionForm, option4: e.target.value})}
-                          required
-                        />
-                      </div>
+                  {/* Options in 2x2 Grid with Better Alignment */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '15px',
+                    marginBottom: '25px',
+                    width: '100%' // Ensure full width usage
+                  }}>
+                    {/* Option 1 */}
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      gap: '8px',
+                      backgroundColor: '#fff',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid #e9ecef',
+                      minWidth: 0 // Allow shrinking
+                    }}>
+                      <label style={{ 
+                        color: '#007bff', 
+                        fontWeight: 'bold', 
+                        fontSize: '14px',
+                        textAlign: 'left',
+                        marginBottom: '0'
+                      }}>
+                        Option 1)
+                      </label>
+                      <input 
+                        type="text" 
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '2px solid #007bff',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'all 0.3s ease',
+                          boxSizing: 'border-box'
+                        }}
+                        value={questionForm.option1}
+                        onChange={(e) => setQuestionForm({...questionForm, option1: e.target.value})}
+                        required
+                        placeholder="Enter option 1"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#0056b3';
+                          e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#007bff';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
                     </div>
-                    <div className="mt-3">
-                      <label className="form-label">Correct option :</label>
+
+                    {/* Option 2 */}
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      gap: '8px',
+                      backgroundColor: '#fff',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid #e9ecef',
+                      minWidth: 0 // Allow shrinking
+                    }}>
+                      <label style={{ 
+                        color: '#007bff', 
+                        fontWeight: 'bold', 
+                        fontSize: '14px',
+                        textAlign: 'left',
+                        marginBottom: '0'
+                      }}>
+                        Option 2)
+                      </label>
+                      <input 
+                        type="text" 
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '2px solid #007bff',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'all 0.3s ease',
+                          boxSizing: 'border-box'
+                        }}
+                        value={questionForm.option2}
+                        onChange={(e) => setQuestionForm({...questionForm, option2: e.target.value})}
+                        required
+                        placeholder="Enter option 2"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#0056b3';
+                          e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#007bff';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                    </div>
+
+                    {/* Option 3 */}
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      gap: '8px',
+                      backgroundColor: '#fff',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid #e9ecef',
+                      minWidth: 0 // Allow shrinking
+                    }}>
+                      <label style={{ 
+                        color: '#007bff', 
+                        fontWeight: 'bold', 
+                        fontSize: '14px',
+                        textAlign: 'left',
+                        marginBottom: '0'
+                      }}>
+                        Option 3)
+                      </label>
+                      <input 
+                        type="text" 
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '2px solid #007bff',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'all 0.3s ease',
+                          boxSizing: 'border-box'
+                        }}
+                        value={questionForm.option3}
+                        onChange={(e) => setQuestionForm({...questionForm, option3: e.target.value})}
+                        required
+                        placeholder="Enter option 3"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#0056b3';
+                          e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#007bff';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                    </div>
+
+                    {/* Option 4 */}
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      gap: '8px',
+                      backgroundColor: '#fff',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid #e9ecef',
+                      minWidth: 0 // Allow shrinking
+                    }}>
+                      <label style={{ 
+                        color: '#007bff', 
+                        fontWeight: 'bold', 
+                        fontSize: '14px',
+                        textAlign: 'left',
+                        marginBottom: '0'
+                      }}>
+                        Option 4)
+                      </label>
+                      <input 
+                        type="text" 
+                        style={{
+                          width: '100%',
+                          padding: '8px 10px',
+                          border: '2px solid #007bff',
+                          borderRadius: '6px',
+                          fontSize: '14px',
+                          outline: 'none',
+                          transition: 'all 0.3s ease',
+                          boxSizing: 'border-box'
+                        }}
+                        value={questionForm.option4}
+                        onChange={(e) => setQuestionForm({...questionForm, option4: e.target.value})}
+                        required
+                        placeholder="Enter option 4"
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#0056b3';
+                          e.target.style.boxShadow = '0 0 0 2px rgba(0, 123, 255, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#007bff';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Correct Option */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '15px',
+                    justifyContent: 'center',
+                    backgroundColor: '#fff',
+                    padding: '15px',
+                    borderRadius: '10px',
+                    border: '2px solid #28a745',
+                    flexWrap: 'wrap' // Allow wrapping on small screens
+                  }}>
+                    <label style={{ 
+                      color: '#28a745', 
+                      fontWeight: 'bold', 
+                      fontSize: '15px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      flexShrink: 0
+                    }}>
+                      <span>🎯</span>
+                      Correct option:
+                    </label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <select 
-                        className="form-select"
+                        style={{
+                          padding: '10px 35px 10px 12px',
+                          border: '2px solid #28a745',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          backgroundColor: '#fff',
+                          appearance: 'none',
+                          minWidth: '120px',
+                          fontWeight: 'bold',
+                          color: '#28a745',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease'
+                        }}
                         value={questionForm.correct_option}
                         onChange={(e) => setQuestionForm({...questionForm, correct_option: parseInt(e.target.value)})}
                         required
+                        onFocus={(e) => {
+                          e.target.style.borderColor = '#1e7e34';
+                          e.target.style.boxShadow = '0 0 0 2px rgba(40, 167, 69, 0.1)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#28a745';
+                          e.target.style.boxShadow = 'none';
+                        }}
                       >
                         <option value={1}>Option 1</option>
                         <option value={2}>Option 2</option>
                         <option value={3}>Option 3</option>
                         <option value={4}>Option 4</option>
                       </select>
+                      {/* Enhanced Diamond icon */}
+                      <span style={{
+                        position: 'absolute',
+                        right: '10px',
+                        color: '#ffc107',
+                        fontSize: '14px',
+                        pointerEvents: 'none',
+                        textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                      }}>
+                        ♦
+                      </span>
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => {
+              </div>
+              
+              {/* Footer Buttons */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '20px',
+                padding: '25px 35px 35px 35px',
+                borderTop: '1px solid #e9ecef',
+                backgroundColor: '#f8f9fa'
+              }}>
+                <button
+                  type="submit"
+                  style={{
+                    backgroundColor: '#007bff',
+                    border: '2px solid #007bff',
+                    borderRadius: '12px',
+                    padding: '15px 30px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(0, 123, 255, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#0056b3';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(0, 123, 255, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#007bff';
+                    e.target.style.transform = 'translateY(0px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(0, 123, 255, 0.3)';
+                  }}
+                >
+                  <span>💾</span>
+                  Save and Next
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     setShowQuestionModal(false);
                     setCurrentQuiz(null);
-                  }}>Close</button>
-                  <button type="submit" className="btn btn-info">Save and Next</button>
-                </div>
-              </form>
-            </div>
+                  }}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    border: '2px solid #6c757d',
+                    borderRadius: '12px',
+                    padding: '15px 30px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 12px rgba(108, 117, 125, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#545b62';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 16px rgba(108, 117, 125, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#6c757d';
+                    e.target.style.transform = 'translateY(0px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(108, 117, 125, 0.3)';
+                  }}
+                >
+                  <span>✕</span>
+                  Close
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
