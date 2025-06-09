@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -6,573 +6,639 @@ const AdminLayout = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 992;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarCollapsed(true);
+      } else {
+        // On desktop, ensure sidebar is visible by default
+        setSidebarCollapsed(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  // Hamburger Menu Component
-  const HamburgerButton = ({ isOpen, onClick }) => (
-    <button
-      className="hamburger-btn"
-      onClick={onClick}
-      style={{
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        padding: '8px',
-        borderRadius: '6px',
-        transition: 'all 0.3s ease',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        width: '40px',
-        height: '40px',
-        position: 'relative'
-      }}
-      onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-      onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-    >
-      <span
-        style={{
-          display: 'block',
-          width: '22px',
-          height: '2px',
-          backgroundColor: '#fff',
-          borderRadius: '1px',
-          transition: 'all 0.3s ease',
-          transform: isOpen ? 'rotate(45deg) translate(5px, 5px)' : 'rotate(0deg) translate(0px, 0px)',
-          marginBottom: isOpen ? '0' : '3px'
-        }}
-      />
-      <span
-        style={{
-          display: 'block',
-          width: '22px',
-          height: '2px',
-          backgroundColor: '#fff',
-          borderRadius: '1px',
-          transition: 'all 0.3s ease',
-          opacity: isOpen ? '0' : '1',
-          marginBottom: isOpen ? '0' : '4px'
-        }}
-      />
-      <span
-        style={{
-          display: 'block',
-          width: '22px',
-          height: '2px',
-          backgroundColor: '#fff',
-          borderRadius: '1px',
-          transition: 'all 0.3s ease',
-          transform: isOpen ? 'rotate(-45deg) translate(7px, -6px)' : 'rotate(0deg) translate(0px, 0px)'
-        }}
-      />
-    </button>
-  );
+  const handleProfileClick = () => {
+    navigate('/admin/profile');
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const navItems = [
+    { path: '/admin', label: 'Dashboard', icon: 'bi-grid-1x2-fill', end: true, color: '#6366f1' },
+    { path: '/admin/subjects', label: 'Subjects', icon: 'bi-book-fill', color: '#10b981' },
+    { path: '/admin/chapters', label: 'Chapters', icon: 'bi-bookmark-fill', color: '#f59e0b' },
+    { path: '/admin/quizzes', label: 'Quizzes', icon: 'bi-question-circle-fill', color: '#8b5cf6' },
+    { path: '/admin/questions', label: 'Questions', icon: 'bi-patch-question-fill', color: '#06b6d4' },
+    { path: '/admin/users', label: 'Users', icon: 'bi-people-fill', color: '#ef4444' },
+    { path: '/admin/reports', label: 'Reports', icon: 'bi-bar-chart-fill', color: '#f97316' }
+  ];
 
   return (
-    <div className="d-flex min-vh-100" style={{ backgroundColor: '#f8f9fa' }}>
-      {/* Floating Hamburger Button (when sidebar is collapsed) */}
-      {sidebarCollapsed && (
-        <div
+    <div className="admin-layout" style={{ 
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      minHeight: '100vh',
+      position: 'relative'
+    }}>
+      {/* Overlay for mobile */}
+      {isMobile && !sidebarCollapsed && (
+        <div 
+          className="sidebar-overlay"
           style={{
             position: 'fixed',
-            top: '20px',
-            left: '20px',
-            zIndex: 1001,
-            background: 'linear-gradient(135deg, #2c3e50, #34495e)',
-            borderRadius: '12px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-            padding: '8px'
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1040,
+            backdropFilter: 'blur(4px)'
           }}
-        >
-          <HamburgerButton 
-            isOpen={false} 
-            onClick={() => setSidebarCollapsed(false)} 
-          />
-        </div>
+          onClick={() => setSidebarCollapsed(true)}
+        />
       )}
 
-      {/* Sidebar */}
+      {/* Modern Sidebar */}
       <div 
-        className="sidebar"
+        className="modern-sidebar"
         style={{
-          width: sidebarCollapsed ? '0px' : '280px',
-          transition: 'all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
           position: 'fixed',
+          top: 0,
+          left: 0,
           height: '100vh',
-          zIndex: 1000,
-          background: 'linear-gradient(180deg, #2c3e50 0%, #34495e 100%)',
-          boxShadow: sidebarCollapsed ? 'none' : '4px 0 20px rgba(0,0,0,0.15)',
-          borderRadius: sidebarCollapsed ? '0' : '0 15px 15px 0',
-          overflow: 'hidden',
+          width: '280px',
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: sidebarCollapsed ? 'none' : '0 20px 60px rgba(0, 0, 0, 0.1)',
           transform: sidebarCollapsed ? 'translateX(-100%)' : 'translateX(0)',
-          opacity: sidebarCollapsed ? 0 : 1
+          transition: 'transform 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.25s ease',
+          zIndex: isMobile ? 1050 : 1000,
+          overflow: 'hidden',
+          willChange: 'transform'
         }}
       >
-        <div className="d-flex flex-column h-100">
-          {/* Header with Hamburger */}
-          <div 
-            className="sidebar-header"
-            style={{
-              padding: '20px',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              minHeight: '80px'
-            }}
-          >
+        <div className="sidebar-content" style={{ 
+          padding: '24px', 
+          height: '100%', 
+          display: 'flex', 
+          flexDirection: 'column' 
+        }}>
+          {/* Logo Section */}
+          <div className="logo-section" style={{ marginBottom: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  backgroundColor: '#3498db',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '12px',
-                  fontSize: '20px',
-                  color: 'white',
-                  fontWeight: 'bold'
-                }}
-              >
-                Q
-              </div>
-              <div>
-                <h5 className="mb-0" style={{ color: '#fff', fontSize: '18px', fontWeight: '600' }}>
-                  Quiz Master
-                </h5>
-                <small style={{ color: '#bdc3c7', fontSize: '12px' }}>Admin Panel</small>
-              </div>
-            </div>
-            <HamburgerButton 
-              isOpen={true} 
-              onClick={() => setSidebarCollapsed(true)} 
-            />
-          </div>
-          
-          {/* Navigation */}
-          <nav className="flex-grow-1" style={{ padding: '20px 0' }}>
-            <div className="nav-items">
-              <NavLink 
-                to="/admin" 
-                end 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-speedometer2" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#3498db'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Dashboard
-                </span>
-              </NavLink>
-              
-              <NavLink 
-                to="/admin/subjects" 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-book" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#e74c3c'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Subjects
-                </span>
-              </NavLink>
-              
-              <NavLink 
-                to="/admin/chapters" 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-list-columns" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#f39c12'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Chapters
-                </span>
-              </NavLink>
-              
-              <NavLink 
-                to="/admin/quizzes" 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-question-circle" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#9b59b6'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Quizzes
-                </span>
-              </NavLink>
-              
-              <NavLink 
-                to="/admin/questions" 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-patch-question" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#1abc9c'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Questions
-                </span>
-              </NavLink>
-              
-              <NavLink 
-                to="/admin/users" 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-people" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#34495e'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Users
-                </span>
-              </NavLink>
-              
-              <NavLink 
-                to="/admin/reports" 
-                className={({isActive}) => `nav-item ${isActive ? 'active' : ''}`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '15px 20px',
-                  margin: '8px 20px',
-                  borderRadius: '12px',
-                  textDecoration: 'none',
-                  color: '#ecf0f1',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  minHeight: '50px'
-                }}
-                onMouseEnter={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'rgba(52, 152, 219, 0.1)';
-                    e.currentTarget.style.transform = 'translateX(5px)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!e.currentTarget.classList.contains('active')) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.transform = 'translateX(0px)';
-                  }
-                }}
-              >
-                <i 
-                  className="bi bi-bar-chart" 
-                  style={{ 
-                    fontSize: '20px',
-                    minWidth: '20px',
-                    color: '#e67e22'
-                  }}
-                />
-                <span style={{ marginLeft: '15px', fontSize: '15px', fontWeight: '500' }}>
-                  Reports
-                </span>
-              </NavLink>
-            </div>
-          </nav>
-          
-          {/* Logout Button */}
-          <div 
-            style={{ 
-              padding: '20px',
-              borderTop: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            <button 
-              onClick={handleLogout}
-              style={{
-                width: '100%',
-                padding: '15px 20px',
-                backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                border: '1px solid rgba(231, 76, 60, 0.3)',
-                borderRadius: '12px',
-                color: '#e74c3c',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: '15px',
-                fontWeight: '500'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = 'rgba(231, 76, 60, 0.2)';
-                e.target.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'rgba(231, 76, 60, 0.1)';
-                e.target.style.transform = 'translateY(0px)';
-              }}
-            >
-              <i className="bi bi-box-arrow-right" style={{ fontSize: '20px', minWidth: '20px' }} />
-              <span style={{ marginLeft: '15px' }}>Logout</span>
-            </button>
+                justifyContent: 'center',
+                marginRight: '16px',
+                fontSize: '24px',
+                boxShadow: '0 8px 32px rgba(102, 126, 234, 0.3)'
+              }}>
+                🎓
+              </div>
+              <div>
+                <h4 style={{ 
+                  margin: 0, 
+                  fontSize: '20px', 
+                  fontWeight: '700',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
+                }}>
+                  Quiz Master
+                </h4>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '14px', 
+                  color: '#64748b',
+                  fontWeight: '500'
+                }}>
+                  Admin Dashboard
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="nav-section" style={{ flex: 1 }}>
+            <div style={{ marginBottom: '24px' }}>
+              <p style={{ 
+                fontSize: '12px', 
+                fontWeight: '600', 
+                textTransform: 'uppercase', 
+                color: '#64748b',
+                margin: '0 0 16px 0',
+                letterSpacing: '0.05em'
+              }}>
+                NAVIGATION
+              </p>
+              <div className="nav-items">
+                {navItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.end}
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    style={({ isActive }) => ({
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '16px 20px',
+                      margin: '4px 0',
+                      borderRadius: '16px',
+                      textDecoration: 'none',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      background: isActive 
+                        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                        : 'transparent',
+                      color: isActive ? '#fff' : '#475569',
+                      boxShadow: isActive 
+                        ? '0 8px 32px rgba(102, 126, 234, 0.3)' 
+                        : 'none',
+                      transform: isActive ? 'translateX(8px)' : 'translateX(0)',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    })}
+                    onMouseEnter={(e) => {
+                      if (!e.currentTarget.classList.contains('active')) {
+                        e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.color = '#667eea';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!e.currentTarget.classList.contains('active')) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.transform = 'translateX(0)';
+                        e.currentTarget.style.color = '#475569';
+                      }
+                    }}
+                  >
+                    <i 
+                      className={item.icon} 
+                      style={{ 
+                        fontSize: '20px', 
+                        marginRight: '16px',
+                        minWidth: '20px'
+                      }}
+                    />
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            </div>
+          </nav>
+
+          {/* User Profile Card */}
+          <div className="user-profile-card" style={{
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+            borderRadius: '20px',
+            padding: '20px',
+            border: '1px solid rgba(102, 126, 234, 0.2)',
+            marginTop: 'auto'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                background: 'linear-gradient(135deg, #ff6b6b, #feca57)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                marginRight: '12px',
+                boxShadow: '0 8px 32px rgba(255, 107, 107, 0.3)'
+              }}>
+                👨‍💼
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '16px', 
+                  fontWeight: '600', 
+                  color: '#1e293b',
+                  lineHeight: '1.2'
+                }}>
+                  {currentUser?.full_name || 'Administrator'}
+                </p>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '13px', 
+                  color: '#64748b',
+                  lineHeight: '1.2'
+                }}>
+                  {currentUser?.email || 'admin@quizmaster.com'}
+                </p>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleProfileClick}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 8px 32px rgba(102, 126, 234, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.3)';
+                }}
+              >
+                <i className="bi bi-person me-2"></i>
+                Profile
+              </button>
+              
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: '10px 12px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  borderRadius: '12px',
+                  color: '#ef4444',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'rgba(239, 68, 68, 0.2)';
+                  e.target.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'rgba(239, 68, 68, 0.1)';
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                <i className="bi bi-box-arrow-right"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-      
-      {/* Main Content */}
+
+      {/* Main Content Area */}
       <div 
         className="main-content"
         style={{
-          marginLeft: sidebarCollapsed ? '0px' : '280px',
-          transition: 'margin-left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)',
+          marginLeft: !isMobile ? (sidebarCollapsed ? '0' : '280px') : '0',
+          width: !isMobile ? (sidebarCollapsed ? '100%' : 'calc(100% - 280px)') : '100%',
+          transition: !isMobile ? 'margin-left 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), width 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)' : 'none',
           minHeight: '100vh',
-          width: sidebarCollapsed ? '100%' : 'calc(100% - 280px)',
-          backgroundColor: '#f8f9fa'
+          position: 'relative',
+          willChange: !isMobile ? 'margin-left, width' : 'auto',
+          maxWidth: '100vw',
+          overflow: 'hidden',
+          zIndex: 1
         }}
       >
-        {/* Enhanced Header */}
-        <header 
-          style={{
-            backgroundColor: '#fff',
-            boxShadow: '0 2px 20px rgba(0,0,0,0.08)',
-            padding: sidebarCollapsed ? '20px 30px 20px 80px' : '20px 30px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            position: 'sticky',
-            top: 0,
-            zIndex: 100,
-            borderBottom: '1px solid #e9ecef',
-            borderRadius: '0 0 15px 15px',
-            transition: 'padding 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)'
-          }}
-        >
-          <div>
-            <h4 className="mb-1"  style={{ color: '#2c3e50', fontWeight: '600' }}>
-             Quiz Master
-            </h4>
-            <small style={{ color: '#7f8c8d' }}>Manage your quiz application</small>
-          </div>
-          <div className="d-flex align-items-center">
-            <div 
+        {/* Top Header */}
+        <header style={{
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+          padding: '20px 32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <button
+              onClick={toggleSidebar}
               style={{
-                backgroundColor: '#f8f9fa',
-                padding: '8px 16px',
-                borderRadius: '25px',
-                border: '1px solid #e9ecef',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                width: '44px',
+                height: '44px',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                marginRight: '20px',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)';
+                e.target.style.boxShadow = '0 8px 32px rgba(102, 126, 234, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 4px 16px rgba(102, 126, 234, 0.3)';
               }}
             >
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  backgroundColor: '#3498db',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '10px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '14px'
-                }}
-              >
-                {(currentUser?.full_name || 'Admin').charAt(0).toUpperCase()}
-              </div>
-              <span style={{ color: '#2c3e50', fontWeight: '500', fontSize: '14px' }}>
-                Welcome, {currentUser?.full_name || 'Admin'}
-              </span>
+                             <i 
+                 className={`bi ${sidebarCollapsed ? 'bi-list' : 'bi-x-lg'}`}
+                 style={{ 
+                   color: '#fff', 
+                   fontSize: '18px',
+                   transition: 'transform 0.2s ease',
+                   transform: sidebarCollapsed ? 'rotate(0deg)' : 'rotate(90deg)'
+                 }}
+               />
+            </button>
+
+            <div>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '24px', 
+                fontWeight: '700',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                Admin Dashboard
+              </h2>
+              <p style={{ 
+                margin: 0, 
+                fontSize: '14px', 
+                color: '#64748b',
+                fontWeight: '500'
+              }}>
+                Manage your quiz application efficiently
+              </p>
             </div>
           </div>
+
+          {/* Search and Notifications */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            
+                     <div className="dropdown">
+             <button 
+               className="btn dropdown-toggle d-flex align-items-center rounded-pill px-3 py-2"
+               type="button" 
+               id="adminDropdown" 
+               data-bs-toggle="dropdown" 
+               aria-expanded="false"
+               style={{
+                 background: 'rgba(255, 255, 255, 0.9)',
+                 border: '1px solid rgba(102, 126, 234, 0.2)',
+                 backdropFilter: 'blur(10px)',
+                 color: '#475569',
+                 fontWeight: '500',
+                 transition: 'all 0.3s ease',
+                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)'
+               }}
+             >
+              <div className="d-flex align-items-center me-2" style={{
+                width: '35px',
+                height: '35px',
+                background: 'linear-gradient(135deg, #ff6b6b, #feca57)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+              }}>
+                👨‍💼
+              </div>
+                             <div className="d-none d-md-flex flex-column text-start">
+                 <span style={{ fontSize: '14px', lineHeight: '1.2', color: '#1e293b' }}>Admin</span>
+                 <small style={{ color: '#64748b', fontSize: '12px', lineHeight: '1.2' }}>Dashboard</small>
+               </div>
+            </button>
+            <ul className="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style={{ borderRadius: '12px' }}>
+              <li>
+                <div className="dropdown-item-text">
+                  <div className="d-flex align-items-center">
+                    <div style={{
+                      width: '40px',
+                      height: '40px',
+                      background: 'linear-gradient(135deg, #ff6b6b, #feca57)',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '16px',
+                      marginRight: '12px'
+                    }}>
+                      👨‍💼
+                    </div>
+                    <div>
+                      <div className="fw-semibold">{currentUser?.full_name || 'Administrator'}</div>
+                      <div className="text-muted small">{currentUser?.email || 'admin@quizmaster.com'}</div>
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <button 
+                  className="dropdown-item d-flex align-items-center py-2" 
+                  onClick={handleProfileClick}
+                  style={{ 
+                    transition: 'all 0.2s ease',
+                    borderRadius: '8px',
+                    margin: '0 8px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#f8f9fa';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <i className="bi bi-person me-2 text-primary"></i>
+                  Profile Settings
+                </button>
+              </li>
+              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <button 
+                  className="dropdown-item d-flex align-items-center py-2 text-danger" 
+                  onClick={handleLogout}
+                  style={{ 
+                    transition: 'all 0.2s ease',
+                    borderRadius: '8px',
+                    margin: '0 8px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#fff5f5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <i className="bi bi-box-arrow-right me-2"></i>
+                  Sign Out
+                </button>
+              </li>
+            </ul>
+          </div>
+           
+          </div>
         </header>
-        
-        {/* Page Content */}
-        <main style={{ padding: '30px' }}>
-          <Outlet />
+
+        {/* Content */}
+        <main style={{ 
+          padding: '32px',
+          background: 'rgba(255, 255, 255, 0.5)',
+          minHeight: 'calc(100vh - 84px)',
+          backdropFilter: 'blur(10px)',
+          width: '100%',
+          maxWidth: '100%',
+          overflow: 'auto'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '100%',
+            overflow: 'hidden'
+          }}>
+            <Outlet />
+          </div>
         </main>
       </div>
 
-      {/* Add CSS for active states */}
+
+
+      {/* Custom Styles */}
       <style jsx>{`
-        .nav-item.active {
-          background: linear-gradient(135deg, #3498db, #2980b9) !important;
-          box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-          transform: translateX(5px);
+        .nav-item.active::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background: #fff;
+          border-radius: 0 4px 4px 0;
         }
-        .nav-item.active:hover {
-          transform: translateX(5px) !important;
+        
+        .admin-layout * {
+          box-sizing: border-box;
+        }
+        
+        .modern-sidebar::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        .modern-sidebar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        
+        .modern-sidebar::-webkit-scrollbar-thumb {
+          background: rgba(102, 126, 234, 0.2);
+          border-radius: 3px;
+        }
+        
+        .modern-sidebar::-webkit-scrollbar-thumb:hover {
+          background: rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Performance optimizations */
+        .modern-sidebar {
+          backface-visibility: hidden;
+          transform-style: preserve-3d;
+          -webkit-transform-style: preserve-3d;
+          will-change: transform;
+          contain: layout style paint;
+        }
+        
+        .main-content {
+          backface-visibility: hidden;
+          transform-style: preserve-3d;
+          -webkit-transform-style: preserve-3d;
+          will-change: transform;
+          contain: layout style paint;
+        }
+        
+        .sidebar-overlay {
+          backface-visibility: hidden;
+          will-change: opacity, visibility;
+        }
+        
+        /* Force hardware acceleration */
+        .modern-sidebar,
+        .main-content {
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+        }
+        
+        /* Desktop behavior */
+        @media (min-width: 769px) {
+          .main-content {
+            transition: margin-left 0.25s cubic-bezier(0.25, 0.8, 0.25, 1), width 0.25s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+          }
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+          .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100vw !important;
+            transform: none !important;
+            transition: none !important;
+          }
+          
+          .modern-sidebar {
+            z-index: 1050 !important;
+          }
+          
+          .sidebar-overlay {
+            z-index: 1040 !important;
+          }
+        }
+        
+        /* Ensure content doesn't get hidden */
+        .main-content > * {
+          position: relative;
+          z-index: 2;
+        }
+        
+        /* Prevent horizontal scrolling */
+        .admin-layout {
+          overflow-x: hidden;
+        }
+        
+        /* Ensure tables and wide content are responsive */
+        .main-content table {
+          max-width: 100%;
+          overflow-x: auto;
+        }
+        
+        .main-content .table-responsive {
+          max-width: 100%;
+          overflow-x: auto;
         }
       `}</style>
     </div>

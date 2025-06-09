@@ -181,14 +181,7 @@ const UserLayout = () => {
               </button>
               <div>
                 <h2 className="mb-0 text-primary fw-bold">Quiz Master</h2>
-                <small className="text-muted">
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'long',
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
-                </small>
+                <small className='text-secondary p-1 rounded-pill bg-light'>Let's Learn</small>
               </div>
             </div>
 

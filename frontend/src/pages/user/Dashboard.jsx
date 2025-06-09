@@ -802,8 +802,18 @@ const UserDashboard = () => {
     // Get user's scores with quiz and subject information
     const getUserScoresWithDetails = () => {
       return userScores.map(score => {
-        // Find the quiz for this score - handle null quiz_id
-        const quiz = score.quiz_id ? upcomingQuizzes.find(q => q._id === score.quiz_id) : null;
+        // Find the quiz for this score - handle null quiz_id and different ID formats
+        let quiz = null;
+        if (score.quiz_id) {
+          // Handle both string IDs and populated objects
+          const scoreQuizId = typeof score.quiz_id === 'object' && score.quiz_id !== null 
+            ? score.quiz_id._id || score.quiz_id.id 
+            : score.quiz_id;
+          
+          quiz = upcomingQuizzes.find(q => {
+            return q._id === scoreQuizId || q._id === String(scoreQuizId) || String(q._id) === String(scoreQuizId);
+          });
+        }
         const chapter = quiz ? getChapterById(quiz.chapter_id) : null;
         const subject = chapter ? getSubjectById(chapter.subject_id) : null;
         

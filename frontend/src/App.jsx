@@ -14,6 +14,7 @@ import Register from './pages/auth/Register';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
+import AdminProfile from './pages/admin/AdminProfile';
 import SubjectsList from './pages/admin/subjects/SubjectsList';
 import ChaptersList from './pages/admin/chapters/ChaptersList';
 import QuizzesList from './pages/admin/quizzes/QuizzesList';
@@ -71,6 +72,7 @@ function App() {
             }
           >
             <Route index element={<AdminDashboard />} />
+            <Route path="profile" element={<AdminProfile />} />
             <Route path="subjects" element={<SubjectsList />} />
             <Route path="chapters" element={<ChaptersList />} />
             <Route path="quizzes" element={<QuizzesList />} />

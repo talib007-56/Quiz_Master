@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { subjectsAPI, chaptersAPI, quizzesAPI, questionsAPI, scoresAPI } from '../../services/api';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -7,6 +9,9 @@ import { Pie, Bar } from 'react-chartjs-2';
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const { logout, currentUser } = useAuth();
+  
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [quizzes, setQuizzes] = useState([]);
@@ -57,6 +62,17 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Navigation handlers
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const handleProfileClick = () => {
+    // Navigate to admin profile page
+    navigate('/admin/profile');
+  };
 
   const fetchData = async () => {
     try {
@@ -463,157 +479,137 @@ const AdminDashboard = () => {
 
   // Modern Navigation bar component
   const NavigationBar = () => (
-    <div style={{
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      borderRadius: '20px',
-      padding: '20px 30px',
-      marginBottom: '30px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
-      border: 'none'
-    }}>
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        {[
-          { key: 'subjects', label: 'Home', icon: '🏠' },
-          { key: 'quizzes', label: 'Quiz', icon: '📝' },
-          { key: 'summary', label: 'Summary', icon: '📊' }
-        ].map((item, index) => (
-          <div key={item.key}>
-            <button
-              onClick={() => setView(item.key)}
-              style={{
-                background: view === item.key 
-                  ? 'rgba(255, 255, 255, 0.25)' 
-                  : 'transparent',
-                border: view === item.key 
-                  ? '2px solid rgba(255, 255, 255, 0.3)' 
-                  : '2px solid transparent',
-                borderRadius: '12px',
-                padding: '12px 20px',
-                color: '#fff',
-                cursor: 'pointer',
-                fontWeight: view === item.key ? '600' : '500',
-                fontSize: '15px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                backdropFilter: view === item.key ? 'blur(10px)' : 'none',
-                boxShadow: view === item.key 
-                  ? '0 4px 15px rgba(255, 255, 255, 0.1)' 
-                  : 'none'
-              }}
-              onMouseEnter={(e) => {
-                if (view !== item.key) {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (view !== item.key) {
-                  e.target.style.background = 'transparent';
-                  e.target.style.transform = 'translateY(0px)';
-                  e.target.style.boxShadow = 'none';
-                }
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
+    <nav className="navbar navbar-expand-lg mb-4" 
+         style={{ 
+           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+           borderRadius: '20px',
+           boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
+           border: 'none',
+           position: 'static',
+           width: '100%'
+         }}>
+      <div className="container-fluid px-4">
+       
+        {/* Mobile Toggle Button */}
+        <button 
+          className="navbar-toggler border-0" 
+          type="button" 
+          data-bs-toggle="collapse" 
+          data-bs-target="#adminNavbar"
+          aria-controls="adminNavbar"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+          style={{ 
+            boxShadow: 'none',
+            padding: '4px 8px'
+          }}
+        >
+          <span className="navbar-toggler-icon" style={{
+            backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e\")",
+            width: '24px',
+            height: '24px'
+          }}></span>
+        </button>
+
+        {/* Navigation Items */}
+        <div className="collapse navbar-collapse" id="adminNavbar">
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+            {[
+              { key: 'subjects', label: 'Home', icon: '🏠' },
+              { key: 'quizzes', label: 'Quiz', icon: '📝' },
+              { key: 'summary', label: 'Summary', icon: '📊' }
+            ].map((item) => (
+              <li className="nav-item" key={item.key}>
+                <button
+                  className={`nav-link btn btn-link px-3 py-2 rounded-pill me-2 d-flex align-items-center ${view === item.key ? 'active' : ''}`}
+                  style={{ 
+                    border: 'none',
+                    fontWeight: '500',
+                    fontSize: '15px',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    textDecoration: 'none',
+                    background: view === item.key 
+                      ? 'rgba(255, 255, 255, 0.25)' 
+                      : 'transparent',
+                    borderWidth: '2px',
+                    borderStyle: 'solid',
+                    borderColor: view === item.key 
+                      ? 'rgba(255, 255, 255, 0.3)' 
+                      : 'transparent',
+                    color: '#fff',
+                    backdropFilter: view === item.key ? 'blur(10px)' : 'none',
+                    boxShadow: view === item.key 
+                      ? '0 4px 15px rgba(255, 255, 255, 0.1)' 
+                      : 'none'
+                  }}
+                  onClick={() => setView(item.key)}
+                  onMouseEnter={(e) => {
+                    if (view !== item.key) {
+                      e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (view !== item.key) {
+                      e.target.style.background = 'transparent';
+                      e.target.style.transform = 'translateY(0px)';
+                      e.target.style.boxShadow = 'none';
+                    }
+                  }}
+                >
+                  <span style={{ fontSize: '16px', marginRight: '8px' }}>{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/* Search Bar */}
+          <div className="d-flex align-items-center me-3">
+            <div className="position-relative">
+              <input 
+                type="text" 
+                className="form-control"
+                placeholder="Search..." 
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  border: '2px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '25px',
+                  padding: '12px 20px 12px 45px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  width: '220px',
+                  outline: 'none',
+                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(10px)',
+                  boxShadow: 'none'
+                }}
+                onFocus={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.25)';
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                  e.target.style.transform = 'scale(1.02)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.transform = 'scale(1)';
+                }}
+              />
+              <span className="position-absolute start-0 top-50 translate-middle-y ms-3" style={{
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontSize: '16px'
+              }}>
+                🔍
+              </span>
+            </div>
           </div>
-        ))}
-      </div>
-      
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        {/* Enhanced Search Bar */}
-        <div style={{ position: 'relative' }}>
-          <input 
-            type="text" 
-            placeholder="Search..." 
-            style={{
-              background: 'rgba(255, 255, 255, 0.84)',
-              border: '2px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '25px',
-              padding: '12px 20px 12px 45px',
-              color: '#fff',
-              fontSize: '14px',
-              width: '220px',
-              outline: 'none',
-              transition: 'all 0.3s ease',
-              backdropFilter: 'blur(10px)'
-            }}
-            onFocus={(e) => {
-              e.target.style.background = 'rgba(255, 255, 255, 0.83)';
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-              e.target.style.transform = 'scale(1.02)';
-            }}
-            onBlur={(e) => {
-              e.target.style.background = 'rgba(255, 255, 255, 0.84)';
-              e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-              e.target.style.transform = 'scale(1)';
-            }}
-          />
-          <span style={{
-            position: 'absolute',
-            left: '15px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: '16px'
-          }}>
-            🔍
-          </span>
-        </div>
-        
-        {/* Admin Profile */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          background: 'rgba(255, 255, 255, 0.15)',
-          padding: '10px 16px',
-          borderRadius: '50px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div style={{
-            width: '35px',
-            height: '35px',
-            background: 'linear-gradient(135deg, #ff6b6b, #feca57)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-          }}>
-            👨‍💼
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ 
-              color: '#fff', 
-              fontWeight: '600', 
-              fontSize: '14px',
-              lineHeight: '1.2'
-            }}>
-              Admin
-            </span>
-            <span style={{ 
-              color: 'rgba(255, 255, 255, 0.8)', 
-              fontSize: '12px',
-              lineHeight: '1.2'
-            }}>
-              Dashboard
-            </span>
-          </div>
+
+          {/* Admin Profile Dropdown */}
+         
         </div>
       </div>
-    </div>
+    </nav>
   );
 
   // Modern Subjects view component
@@ -1207,27 +1203,70 @@ const AdminDashboard = () => {
 
     // Calculate scores for each subject
     scores.forEach(score => {
-      // Find the quiz for this score
-      const quiz = quizzes.find(q => q._id === score.quiz_id);
-      if (!quiz) return;
+      // Handle null quiz_id
+      if (!score.quiz_id) return;
 
-      // Find the chapter for this quiz
-      const chapter = chapters.find(c => c._id === quiz.chapter_id);
-      if (!chapter) return;
+      // Find the quiz for this score - handle different ID formats
+      const scoreQuizId = typeof score.quiz_id === 'object' && score.quiz_id !== null 
+        ? score.quiz_id._id || score.quiz_id.id 
+        : score.quiz_id;
+      
+      const quiz = quizzes.find(q => {
+        return q._id === scoreQuizId || q._id === String(scoreQuizId) || String(q._id) === String(scoreQuizId);
+      });
+      
+      if (!quiz) {
+        console.log('Quiz not found for score:', score);
+        return;
+      }
 
-      // Find the subject for this chapter
-      const subjectId = typeof chapter.subject_id === 'object' 
-        ? chapter.subject_id._id 
+      // Find the chapter for this quiz - handle different ID formats
+      const chapterQuizId = typeof quiz.chapter_id === 'object' && quiz.chapter_id !== null 
+        ? quiz.chapter_id._id || quiz.chapter_id.id 
+        : quiz.chapter_id;
+      
+      const chapter = chapters.find(c => {
+        return c._id === chapterQuizId || c._id === String(chapterQuizId) || String(c._id) === String(chapterQuizId);
+      });
+      
+      if (!chapter) {
+        console.log('Chapter not found for quiz:', quiz);
+        return;
+      }
+
+      // Find the subject for this chapter - handle different ID formats
+      const subjectChapterId = typeof chapter.subject_id === 'object' && chapter.subject_id !== null 
+        ? chapter.subject_id._id || chapter.subject_id.id 
         : chapter.subject_id;
 
-      if (subjectStats[subjectId]) {
-        const scorePercentage = (score.score / score.total_questions) * 100;
-        subjectStats[subjectId].allScores.push(scorePercentage);
-        subjectStats[subjectId].totalAttempts++;
+      if (subjectStats[subjectChapterId]) {
+        // Calculate score percentage - use correct field names
+        const totalScored = score.total_scored || score.score || 0;
+        const totalQuestions = score.total_questions || 0;
         
-        // Update top score if this is higher
-        if (scorePercentage > subjectStats[subjectId].topScore) {
-          subjectStats[subjectId].topScore = scorePercentage;
+        // Get total questions from quiz if not in score
+        let actualTotalQuestions = totalQuestions;
+        if (actualTotalQuestions === 0) {
+          const quizQuestions = questions.filter(q => {
+            const questionQuizId = typeof q.quiz_id === 'object' && q.quiz_id !== null 
+              ? q.quiz_id._id || q.quiz_id.id 
+              : q.quiz_id;
+            return questionQuizId === quiz._id || String(questionQuizId) === String(quiz._id);
+          });
+          actualTotalQuestions = quizQuestions.length;
+        }
+        
+        if (actualTotalQuestions > 0) {
+          const scorePercentage = Math.round((totalScored / actualTotalQuestions) * 100);
+          subjectStats[subjectChapterId].allScores.push(scorePercentage);
+          subjectStats[subjectChapterId].totalAttempts++;
+          
+          // Update top score if this is higher
+          if (scorePercentage > subjectStats[subjectChapterId].topScore) {
+            subjectStats[subjectChapterId].topScore = scorePercentage;
+          }
+          
+          console.log(`Score for ${subjectStats[subjectChapterId].name}: ${scorePercentage}% (${totalScored}/${actualTotalQuestions})`);
         }
       }
     });
@@ -1429,13 +1468,13 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
+    <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '0' }}>
       {/* Enhanced Main Header */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%)',
-        borderRadius: '24px',
+        borderRadius: '0 0 24px 24px',
         padding: '40px 30px',
-        marginBottom: '40px',
+        marginBottom: '20px',
         position: 'relative',
         overflow: 'hidden',
         boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
@@ -1596,11 +1635,16 @@ const AdminDashboard = () => {
         </div>
       </div>
       
-      <NavigationBar />
-      
-      {view === 'subjects' && <SubjectsView />}
-      {view === 'quizzes' && <QuizManagementView />}
-      {view === 'summary' && <SummaryView />}
+      {/* Navigation and Content Container */}
+      <div className="container-fluid px-3">
+        <NavigationBar />
+        
+        <div style={{ paddingTop: '0' }}>
+          {view === 'subjects' && <SubjectsView />}
+          {view === 'quizzes' && <QuizManagementView />}
+          {view === 'summary' && <SummaryView />}
+        </div>
+      </div>
 
       {/* Subject Modal */}
       {showSubjectModal && (
