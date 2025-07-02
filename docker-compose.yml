@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://localhost:5001/api
+    depends_on:
+      - backend
+    networks:
+      - quiz-master-network
+
+  # Backend Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - NODE_ENV=production
+      - PORT=5001
+      - MONGODB_URI=mongodb://mongo:27017/quiz-master
+      - JWT_SECRET=your_super_secret_jwt_key_here_minimum_32_characters
+      - JWT_EXPIRES_IN=24h
+      - FRONTEND_URL=http://localhost
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=false
+      - SMTP_USER=your_email@gmail.com
+      - SMTP_PASS=your_app_password
+      - REDIS_URL=redis://redis:6379
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - quiz-master-network
+    restart: unless-stopped
+
+  # MongoDB Service
+  mongo:
+    image: mongo:6.0
+    container_name: quiz-master-mongo
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=quiz-master
+    volumes:
+      - mongo_data:/data/db
+      - ./backend/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - quiz-master-network
+    restart: unless-stopped
+
+  # Redis Service
+  redis:
+    image: redis:7-alpine
+    container_name: quiz-master-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - quiz-master-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+volumes:
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  quiz-master-network:
+    driver: bridge 

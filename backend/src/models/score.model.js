@@ -36,6 +36,24 @@ const scoreSchema = new mongoose.Schema({
       required: true
     }
   }],
+  time_analytics: {
+    totalTimeSpent: {
+      type: Number,
+      default: 0
+    },
+    averageTimePerQuestion: {
+      type: Number,
+      default: 0
+    },
+    formattedTotalTime: {
+      type: String,
+      default: '00:00:00'
+    },
+    formattedAverageTime: {
+      type: String,
+      default: '00:00:00'
+    }
+  },
   created_at: {
     type: Date,
     default: Date.now
@@ -44,8 +62,14 @@ const scoreSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create a compound index to ensure a user can only attempt a quiz once
-scoreSchema.index({ quiz_id: 1, user_id: 1 }, { unique: true });
+// Performance Indexes
+scoreSchema.index({ quiz_id: 1, user_id: 1 }, { unique: true }); // Compound unique index
+scoreSchema.index({ user_id: 1 }); // Index for user-specific queries
+scoreSchema.index({ quiz_id: 1 }); // Index for quiz-specific queries
+scoreSchema.index({ time_stamp_of_attempt: -1 }); // Index for chronological queries
+scoreSchema.index({ total_scored: -1 }); // Index for score-based sorting
+scoreSchema.index({ created_at: -1 }); // Index for recent attempts
+scoreSchema.index({ 'answers.question_id': 1 }); // Index for answer analysis
 
 const Score = mongoose.model('Score', scoreSchema);
 

@@ -18,8 +18,17 @@ app.use((req, res, next) => {
 
 // Custom CORS middleware
 app.use((req, res, next) => {
-  // Set CORS headers
-  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  // Get allowed origins from environment or default to localhost
+  const allowedOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',')
+    : ['http://localhost:5173'];
+  
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -41,7 +50,7 @@ app.get('/', (req, res) => {
 });
 
 // Import route files with try-catch blocks
-let authRoutes, subjectRoutes, chapterRoutes, quizRoutes, questionRoutes, scoreRoutes, userRoutes;
+let authRoutes, subjectRoutes, chapterRoutes, quizRoutes, questionRoutes, scoreRoutes, userRoutes, exportRoutes, notificationRoutes;
 
 try {
   authRoutes = require('./routes/auth.routes');
@@ -92,6 +101,20 @@ try {
   console.error('Failed to load user routes:', err);
 }
 
+try {
+  exportRoutes = require('./routes/export.routes');
+  console.log('Export routes loaded successfully');
+} catch (err) {
+  console.error('Failed to load export routes:', err);
+}
+
+try {
+  notificationRoutes = require('./routes/notification.routes');
+  console.log('Notification routes loaded successfully');
+} catch (err) {
+  console.error('Failed to load notification routes:', err);
+}
+
 // Use routes with explicit paths
 if (authRoutes) app.use('/api/auth', authRoutes);
 if (subjectRoutes) app.use('/api/subjects', subjectRoutes);
@@ -100,6 +123,8 @@ if (quizRoutes) app.use('/api/quizzes', quizRoutes);
 if (questionRoutes) app.use('/api/questions', questionRoutes);
 if (scoreRoutes) app.use('/api/scores', scoreRoutes);
 if (userRoutes) app.use('/api/users', userRoutes);
+if (exportRoutes) app.use('/api/export', exportRoutes);
+if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -111,8 +136,7 @@ app.use((err, req, res, next) => {
 });
 
 // Connect to MongoDB
-// Force port to be 5001 regardless of environment variable
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/quiz-master';
 
 mongoose

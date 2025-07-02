@@ -154,8 +154,8 @@ const SubjectsList = () => {
 
       {/* Add Subject Modal */}
       {showAddModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog" style={{ margin: 0, width: '90%', maxWidth: '500px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Add Subject</h5>
@@ -211,8 +211,8 @@ const SubjectsList = () => {
 
       {/* Edit Subject Modal */}
       {showEditModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog" style={{ margin: 0, width: '90%', maxWidth: '500px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit Subject</h5>
@@ -266,10 +266,7 @@ const SubjectsList = () => {
         </div>
       )}
 
-      {/* Modal Backdrop */}
-      {(showAddModal || showEditModal) && (
-        <div className="modal-backdrop show"></div>
-      )}
+
     </div>
   );
 };

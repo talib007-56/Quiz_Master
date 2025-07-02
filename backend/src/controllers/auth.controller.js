@@ -39,8 +39,12 @@ exports.register = async (req, res) => {
         email: user.email,
         full_name: user.full_name,
         qualification: user.qualification,
+        phone: user.phone,
+        department: user.department,
+        bio: user.bio,
         dob: user.dob,
-        role: user.role
+        role: user.role,
+        created_at: user.created_at
       },
       token
     });
@@ -81,8 +85,12 @@ exports.login = async (req, res) => {
         email: user.email,
         full_name: user.full_name,
         qualification: user.qualification,
+        phone: user.phone,
+        department: user.department,
+        bio: user.bio,
         dob: user.dob,
-        role: user.role
+        role: user.role,
+        created_at: user.created_at
       },
       token
     });
@@ -106,12 +114,55 @@ exports.getCurrentUser = async (req, res) => {
         email: user.email,
         full_name: user.full_name,
         qualification: user.qualification,
+        phone: user.phone,
+        department: user.department,
+        bio: user.bio,
         dob: user.dob,
-        role: user.role
+        role: user.role,
+        created_at: user.created_at
       }
     });
   } catch (error) {
     console.error('Error in getCurrentUser:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Change password
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Error in changePassword:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

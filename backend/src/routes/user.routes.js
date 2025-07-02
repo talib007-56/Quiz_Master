@@ -46,7 +46,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     }
 
     // Only allow updating specific fields
-    const allowedUpdates = ['full_name', 'qualification'];
+    const allowedUpdates = ['full_name', 'qualification', 'phone', 'department', 'bio'];
     if (req.userRole === 'admin') {
       allowedUpdates.push('role');
     }
@@ -63,6 +63,9 @@ router.put('/:id', verifyToken, async (req, res) => {
       email: updatedUser.email,
       full_name: updatedUser.full_name,
       qualification: updatedUser.qualification,
+      phone: updatedUser.phone,
+      department: updatedUser.department,
+      bio: updatedUser.bio,
       role: updatedUser.role
     });
   } catch (error) {

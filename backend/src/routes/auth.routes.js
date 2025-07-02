@@ -12,4 +12,7 @@ router.post('/login', authController.login);
 // Get current user (protected route)
 router.get('/me', verifyToken, checkUserExists, authController.getCurrentUser);
 
+// Change password (protected route)
+router.post('/change-password', verifyToken, checkUserExists, authController.changePassword);
+
 module.exports = router; 

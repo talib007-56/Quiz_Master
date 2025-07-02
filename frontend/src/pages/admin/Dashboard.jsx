@@ -1,12 +1,187 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { subjectsAPI, chaptersAPI, quizzesAPI, questionsAPI, scoresAPI } from '../../services/api';
+import { subjectsAPI, chaptersAPI, quizzesAPI, questionsAPI, scoresAPI, exportAPI, notificationAPI, downloadCSV } from '../../services/api';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
+import 'bootstrap/dist/css/bootstrap.min.css';  // This is overriding everything!
 
 // Register ChartJS components
 ChartJS.register(ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+// Standalone Navigation Bar Component to prevent re-creation (like user dashboard)
+const NavigationBar = memo(({ 
+  view, 
+  searchQuery, 
+  onSearchChange, 
+  onViewChange 
+}) => (
+  <nav className="navbar navbar-expand-lg mb-4" 
+       style={{ 
+         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+         borderRadius: '20px',
+         boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
+         border: 'none',
+         position: 'static',
+         maxWidth: '1400px',
+         margin: '0 auto 20px auto'
+       }}>
+    <div className="container-fluid px-4">
+      {/* Navigation Items */}
+      <div className="collapse navbar-collapse" id="adminNavbar">
+        <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+          {[
+            { key: 'subjects', label: 'Home', icon: '🏠' },
+            { key: 'quizzes', label: 'Quiz', icon: '📝' },
+            { key: 'summary', label: 'Summary', icon: '📊' },
+            { key: 'export', label: 'Export', icon: '📥' },
+            { key: 'notifications', label: 'Notifications', icon: '🔔' }
+          ].map((item) => (
+            <li className="nav-item" key={item.key}>
+              <button
+                className={`nav-link btn btn-link px-3 py-2 rounded-pill me-2 d-flex align-items-center ${view === item.key ? 'active' : ''}`}
+                style={{ 
+                  border: 'none',
+                  fontWeight: '500',
+                  fontSize: '15px',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  textDecoration: 'none',
+                  background: view === item.key 
+                    ? 'rgba(255, 255, 255, 0.25)' 
+                    : 'transparent',
+                  borderWidth: '2px',
+                  borderStyle: 'solid',
+                  borderColor: view === item.key 
+                    ? 'rgba(255, 255, 255, 0.3)' 
+                    : 'transparent',
+                  color: '#fff',
+                  backdropFilter: view === item.key ? 'blur(10px)' : 'none',
+                  boxShadow: view === item.key 
+                    ? '0 4px 15px rgba(255, 255, 255, 0.1)' 
+                    : 'none'
+                }}
+                onClick={() => onViewChange(item.key)}
+                onMouseEnter={(e) => {
+                  if (view !== item.key) {
+                    e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (view !== item.key) {
+                    e.target.style.background = 'transparent';
+                    e.target.style.transform = 'translateY(0px)';
+                    e.target.style.boxShadow = 'none';
+                  }
+                }}
+              >
+                <span style={{ fontSize: '16px', marginRight: '8px' }}>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        {/* Search Bar */}
+        <div className="d-flex align-items-center me-3">
+          <div className="position-relative">
+            <input 
+              type="text" 
+              className="form-control"
+              placeholder="Search subjects, chapters, quizzes..."
+              value={searchQuery}
+              onChange={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSearchChange(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Escape') {
+                  onSearchChange('');
+                  e.target.blur();
+                }
+              }}
+              onKeyUp={(e) => {
+                e.stopPropagation();
+              }}
+              onInput={(e) => {
+                e.stopPropagation();
+              }}
+              style={{
+                background: 'rgba(255, 255, 255, 0.15)',
+                border: '2px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '25px',
+                padding: '12px 20px 12px 45px',
+                color: '#fff',
+                fontSize: '14px',
+                width: '280px',
+                outline: 'none',
+                transition: 'all 0.3s ease',
+                backdropFilter: 'blur(10px)',
+                boxShadow: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.25)';
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+                e.target.style.transform = 'scale(1.02)';
+              }}
+              onBlur={(e) => {
+                e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                e.target.style.transform = 'scale(1)';
+              }}
+              autoComplete="off"
+              spellCheck="false"
+            />
+            <span className="position-absolute start-0 top-50 translate-middle-y ms-3" style={{
+              color: searchQuery ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.7)',
+              fontSize: '16px',
+              transition: 'color 0.2s ease'
+            }}>
+              🔍
+            </span>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="position-absolute end-0 top-50 translate-middle-y me-3"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  padding: '0',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'none';
+                  e.target.style.color = 'rgba(255, 255, 255, 0.8)';
+                }}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+));
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -30,6 +205,17 @@ const AdminDashboard = () => {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [view, setView] = useState('subjects'); // 'subjects', 'quizzes', 'summary'
   const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0); // Force re-render trigger
+  const [searchQuery, setSearchQuery] = useState(''); // Search functionality
+  
+  // Memoized handlers to prevent input focus loss (similar to user dashboard)
+  const handleSearchChange = useCallback((value) => {
+    setSearchQuery(value);
+  }, []);
+
+  const handleViewChange = useCallback((newView) => {
+    setView(newView);
+    setSearchQuery(''); // Clear search when changing views
+  }, []);
   
   // Form states
   const [subjectForm, setSubjectForm] = useState({ name: '', description: '' });
@@ -62,6 +248,27 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Lock body scroll when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = showSubjectModal || showChapterModal || showQuizModal || showQuestionModal || showEditQuestionModal || showEditChapterModal;
+    
+    if (isAnyModalOpen) {
+      // Lock body scroll
+      document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = '15px'; // Prevent layout shift from scrollbar
+    } else {
+      // Unlock body scroll
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    };
+  }, [showSubjectModal, showChapterModal, showQuizModal, showQuestionModal, showEditQuestionModal, showEditChapterModal]);
 
   // Navigation handlers
   const handleLogout = () => {
@@ -375,15 +582,27 @@ const AdminDashboard = () => {
     console.log('All questions:', questions);
     
     const result = questions.filter(question => {
+      // Safety check for null/undefined question or quiz_id
+      if (!question || !question.quiz_id || question.quiz_id === null) {
+        console.log(`Skipping question with null/undefined quiz_id:`, question);
+        return false;
+      }
+      
       // Handle both ObjectId and string comparison
-      const questionQuizId = typeof question.quiz_id === 'object' 
-        ? question.quiz_id._id || question.quiz_id.toString()
-        : question.quiz_id;
-      
-      console.log(`Question ${question._id}: quiz_id = ${questionQuizId} (type: ${typeof questionQuizId})`);
-      console.log(`Comparing: "${questionQuizId}" === "${quizId}" = ${questionQuizId === quizId}`);
-      
-      return questionQuizId === quizId || questionQuizId === String(quizId) || String(questionQuizId) === String(quizId);
+      let questionQuizId;
+      try {
+        questionQuizId = typeof question.quiz_id === 'object' && question.quiz_id !== null
+          ? question.quiz_id._id || question.quiz_id.toString()
+          : question.quiz_id;
+        
+        console.log(`Question ${question._id}: quiz_id = ${questionQuizId} (type: ${typeof questionQuizId})`);
+        console.log(`Comparing: "${questionQuizId}" === "${quizId}" = ${questionQuizId === quizId}`);
+        
+        return questionQuizId === quizId || questionQuizId === String(quizId) || String(questionQuizId) === String(quizId);
+      } catch (error) {
+        console.error('Error processing question:', question, error);
+        return false;
+      }
     });
     
     console.log(`Found ${result.length} questions for quiz ${quizId}:`, result);
@@ -414,19 +633,29 @@ const AdminDashboard = () => {
       
       chapterQuizzes.forEach(quiz => {
         const quizQuestions = questions.filter(question => {
-          const questionQuizId = typeof question.quiz_id === 'object' 
-            ? question.quiz_id._id || question.quiz_id.toString()
-            : question.quiz_id;
-          
-          const matches = questionQuizId === quiz._id || 
-                         questionQuizId === String(quiz._id) || 
-                         String(questionQuizId) === String(quiz._id);
-          
-          if (matches) {
-            console.log(`  ✓ Question "${question.question_title}" matches quiz ${quiz._id}`);
+          // Skip questions with null quiz_id
+          if (!question || !question.quiz_id || question.quiz_id === null) {
+            return false;
           }
           
-          return matches;
+          try {
+            const questionQuizId = typeof question.quiz_id === 'object' && question.quiz_id !== null
+              ? question.quiz_id._id || question.quiz_id.toString()
+              : question.quiz_id;
+            
+            const matches = questionQuizId === quiz._id || 
+                           questionQuizId === String(quiz._id) || 
+                           String(questionQuizId) === String(quiz._id);
+            
+            if (matches) {
+              console.log(`  ✓ Question "${question.question_title}" matches quiz ${quiz._id}`);
+            }
+            
+            return matches;
+          } catch (error) {
+            console.error('Error processing question in chapter count:', question, error);
+            return false;
+          }
         });
         
         console.log(`  Quiz ${quiz._id} has ${quizQuestions.length} questions`);
@@ -444,6 +673,52 @@ const AdminDashboard = () => {
   const getQuestionCountForChapter = (chapterId) => {
     return chapterQuestionCounts[chapterId] || 0;
   };
+
+  // Memoized filtered data
+  const filteredSubjects = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return subjects;
+    const query = searchQuery.toLowerCase();
+    return subjects.filter(subject => 
+      subject?.name?.toLowerCase().includes(query) ||
+      subject?.description?.toLowerCase().includes(query)
+    );
+  }, [subjects, searchQuery]);
+
+  const filteredQuizzes = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return quizzes;
+    const query = searchQuery.toLowerCase();
+    
+    return quizzes.filter(quiz => {
+      try {
+        // Find chapter for this quiz
+        const chapter = chapters.find(c => {
+          const chapterId = typeof quiz.chapter_id === 'object' && quiz.chapter_id !== null 
+            ? quiz.chapter_id._id || quiz.chapter_id.id 
+            : quiz.chapter_id;
+          return c._id === chapterId || c._id === String(chapterId) || String(c._id) === String(chapterId);
+        });
+        
+        // Find subject for this chapter
+        const subject = chapter ? subjects.find(s => {
+          const subjectId = typeof chapter.subject_id === 'object' && chapter.subject_id !== null 
+            ? chapter.subject_id._id || chapter.subject_id.id 
+            : chapter.subject_id;
+          return s._id === subjectId || s._id === String(subjectId) || String(s._id) === String(subjectId);
+        }) : null;
+
+        // Search in various fields
+        return (
+          chapter?.name?.toLowerCase().includes(query) ||
+          subject?.name?.toLowerCase().includes(query) ||
+          quiz?.remarks?.toLowerCase().includes(query) ||
+          quiz?.date_of_quiz?.includes(searchQuery)
+        );
+      } catch (error) {
+        console.error('Error filtering quiz:', error);
+        return false;
+      }
+    });
+  }, [quizzes, chapters, subjects, searchQuery]);
 
   const handleDeleteSubject = async (id) => {
     if (window.confirm('Are you sure you want to delete this subject?')) {
@@ -477,140 +752,90 @@ const AdminDashboard = () => {
     setShowEditChapterModal(true);
   };
 
-  // Modern Navigation bar component
-  const NavigationBar = () => (
-    <nav className="navbar navbar-expand-lg mb-4" 
-         style={{ 
-           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-           borderRadius: '20px',
-           boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
-           border: 'none',
-           position: 'static',
-           width: '100%'
-         }}>
-      <div className="container-fluid px-4">
-       
-        {/* Mobile Toggle Button */}
-        <button 
-          className="navbar-toggler border-0" 
-          type="button" 
-          data-bs-toggle="collapse" 
-          data-bs-target="#adminNavbar"
-          aria-controls="adminNavbar"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-          style={{ 
-            boxShadow: 'none',
-            padding: '4px 8px'
-          }}
-        >
-          <span className="navbar-toggler-icon" style={{
-            backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.85%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e\")",
-            width: '24px',
-            height: '24px'
-          }}></span>
-        </button>
+  // Export functions
+  const handleExportQuizData = async () => {
+    try {
+      const response = await exportAPI.exportQuizData();
+      downloadCSV(response.data, 'quiz-data.csv');
+    } catch (error) {
+      console.error('Error exporting quiz data:', error);
+      alert('Failed to export quiz data');
+    }
+  };
 
-        {/* Navigation Items */}
-        <div className="collapse navbar-collapse" id="adminNavbar">
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            {[
-              { key: 'subjects', label: 'Home', icon: '🏠' },
-              { key: 'quizzes', label: 'Quiz', icon: '📝' },
-              { key: 'summary', label: 'Summary', icon: '📊' }
-            ].map((item) => (
-              <li className="nav-item" key={item.key}>
-                <button
-                  className={`nav-link btn btn-link px-3 py-2 rounded-pill me-2 d-flex align-items-center ${view === item.key ? 'active' : ''}`}
-                  style={{ 
-                    border: 'none',
-                    fontWeight: '500',
-                    fontSize: '15px',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    textDecoration: 'none',
-                    background: view === item.key 
-                      ? 'rgba(255, 255, 255, 0.25)' 
-                      : 'transparent',
-                    borderWidth: '2px',
-                    borderStyle: 'solid',
-                    borderColor: view === item.key 
-                      ? 'rgba(255, 255, 255, 0.3)' 
-                      : 'transparent',
-                    color: '#fff',
-                    backdropFilter: view === item.key ? 'blur(10px)' : 'none',
-                    boxShadow: view === item.key 
-                      ? '0 4px 15px rgba(255, 255, 255, 0.1)' 
-                      : 'none'
-                  }}
-                  onClick={() => setView(item.key)}
-                  onMouseEnter={(e) => {
-                    if (view !== item.key) {
-                      e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                      e.target.style.transform = 'translateY(-2px)';
-                      e.target.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (view !== item.key) {
-                      e.target.style.background = 'transparent';
-                      e.target.style.transform = 'translateY(0px)';
-                      e.target.style.boxShadow = 'none';
-                    }
-                  }}
-                >
-                  <span style={{ fontSize: '16px', marginRight: '8px' }}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+  const handleExportQuizAttempts = async () => {
+    try {
+      const response = await exportAPI.exportQuizAttempts();
+      downloadCSV(response.data, 'quiz-attempts.csv');
+    } catch (error) {
+      console.error('Error exporting quiz attempts:', error);
+      alert('Failed to export quiz attempts');
+    }
+  };
 
-          {/* Search Bar */}
-          <div className="d-flex align-items-center me-3">
-            <div className="position-relative">
-              <input 
-                type="text" 
-                className="form-control"
-                placeholder="Search..." 
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  border: '2px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '25px',
-                  padding: '12px 20px 12px 45px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  width: '220px',
-                  outline: 'none',
-                  transition: 'all 0.3s ease',
-                  backdropFilter: 'blur(10px)',
-                  boxShadow: 'none'
-                }}
-                onFocus={(e) => {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.25)';
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.4)';
-                  e.target.style.transform = 'scale(1.02)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-                  e.target.style.transform = 'scale(1)';
-                }}
-              />
-              <span className="position-absolute start-0 top-50 translate-middle-y ms-3" style={{
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '16px'
-              }}>
-                🔍
-              </span>
-            </div>
-          </div>
+  const handleExportUserEngagement = async () => {
+    try {
+      const response = await exportAPI.exportUserEngagement();
+      downloadCSV(response.data, 'user-engagement.csv');
+    } catch (error) {
+      console.error('Error exporting user engagement:', error);
+      alert('Failed to export user engagement data');
+    }
+  };
 
-          {/* Admin Profile Dropdown */}
-         
-        </div>
-      </div>
-    </nav>
-  );
+  // Notification trigger functions
+  const handleTriggerDailyReminders = async () => {
+    try {
+      await notificationAPI.triggerDailyReminders();
+      alert('Daily reminders sent successfully!');
+    } catch (error) {
+      console.error('Error triggering daily reminders:', error);
+      alert('Failed to send daily reminders');
+    }
+  };
+
+  const handleTriggerMonthlyReports = async () => {
+    try {
+      await notificationAPI.triggerMonthlyReports();
+      alert('Monthly reports sent successfully!');
+    } catch (error) {
+      console.error('Error triggering monthly reports:', error);
+      alert('Failed to send monthly reports');
+    }
+  };
+
+  const handleTriggerEngagementNotification = async () => {
+    try {
+      await notificationAPI.triggerEngagementNotification();
+      alert('Engagement notifications sent successfully!');
+    } catch (error) {
+      console.error('Error triggering engagement notification:', error);
+      alert('Failed to send engagement notifications');
+    }
+  };
+
+  const handleTestEmail = async () => {
+    try {
+      const email = prompt('Enter email address for test (or leave empty to use SMTP_USER):');
+      const result = await notificationAPI.testEmail(email);
+      alert(`Test email sent successfully! Check your inbox.\nMessage ID: ${result.data.details.messageId}`);
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      const errorMsg = error.response?.data?.message || error.message;
+      const details = error.response?.data?.details;
+      
+      let alertMsg = `Failed to send test email: ${errorMsg}`;
+      if (details) {
+        alertMsg += `\n\nConfiguration Status:`;
+        alertMsg += `\n• SMTP Host: ${details.smtpHost}`;
+        alertMsg += `\n• SMTP User: ${details.smtpUser}`;
+        alertMsg += `\n• SMTP Password: ${details.smtpPassSet ? 'SET' : 'NOT SET'}`;
+      }
+      alert(alertMsg);
+    }
+  };
+
+
 
   // Modern Subjects view component
   const SubjectsView = () => {
@@ -637,9 +862,9 @@ const AdminDashboard = () => {
           
           .chapter-row {
             display: grid;
-            grid-template-columns: 1fr 120px 140px;
+            grid-template-columns: 1fr auto auto;
             align-items: center;
-            gap: 20px;
+            gap: 12px;
             padding: 16px 20px;
             border-radius: 12px;
             border: 1px solid #e9ecef;
@@ -648,6 +873,64 @@ const AdminDashboard = () => {
             transform: translate3d(0, 0, 0);
             transition: transform 0.15s ease;
             margin-bottom: 8px;
+          }
+          
+          @media (max-width: 768px) {
+            .chapter-row {
+              grid-template-columns: 1fr;
+              gap: 16px;
+            }
+            
+            .chapter-row > div:nth-child(1) {
+              order: 1;
+            }
+            
+            .chapter-row > div:nth-child(2) {
+              order: 2;
+              justify-self: start;
+              margin-left: 20px;
+            }
+            
+            .chapter-row > div:nth-child(3) {
+              order: 3;
+              justify-self: start;
+              margin-left: 20px;
+            }
+            
+            .chapter-row > div:nth-child(3) > div {
+              justify-content: flex-start;
+            }
+          }
+          
+          @media (max-width: 768px) {
+            .subject-card {
+              min-height: auto;
+            }
+          }
+          
+          @media (max-width: 480px) {
+            .chapter-row {
+              padding: 12px 16px;
+            }
+            
+            .action-button {
+              padding: 6px 10px;
+              font-size: 12px;
+              min-width: 50px;
+            }
+            
+            .table-header-mobile {
+              display: none;
+            }
+            
+            .subject-card {
+              margin: 0 10px;
+            }
+            
+            .chapter-row > div:nth-child(2),
+            .chapter-row > div:nth-child(3) {
+              margin-left: 10px;
+            }
           }
           
           .chapter-row:hover {
@@ -690,11 +973,47 @@ const AdminDashboard = () => {
         
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-          gap: '30px', 
-          marginBottom: '30px' 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(500px, 100%), 1fr))',
+          gap: 'clamp(15px, 4vw, 30px)', 
+          marginBottom: '30px',
+          padding: '0 clamp(10px, 2vw, 20px)'
         }}>
-          {subjects.map(subject => {
+          {/* Search Results Info */}
+          {searchQuery && (
+            <div style={{
+              gridColumn: '1 / -1',
+              background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              border: '1px solid #2196f3',
+              marginBottom: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '16px' }}>🔍</span>
+              <span style={{ color: '#1976d2', fontWeight: '600', fontSize: '14px' }}>
+                Search results for "{searchQuery}" - Found {filteredSubjects.length} subject(s)
+              </span>
+              <button
+                onClick={() => handleSearchChange('')}
+                style={{
+                  marginLeft: 'auto',
+                  background: '#2196f3',
+                  border: 'none',
+                  color: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {filteredSubjects.map(subject => {
             const subjectChapters = getChaptersBySubject(subject._id);
             
             return (
@@ -726,16 +1045,16 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Simple Table Header */}
-                <div style={{
+                <div className="table-header-mobile" style={{
                   background: '#f8f9fa',
                   padding: '20px 30px',
                   borderBottom: '1px solid #e9ecef'
                 }}>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 120px 140px',
+                    gridTemplateColumns: '1fr auto auto',
                     alignItems: 'center',
-                    gap: '20px'
+                    gap: '12px'
                   }}>
                     <div style={{
                       fontWeight: '600',
@@ -804,7 +1123,8 @@ const AdminDashboard = () => {
                             
                             <div style={{
                               display: 'flex',
-                              justifyContent: 'center'
+                              justifyContent: 'flex-start',
+                              alignItems: 'center'
                             }}>
                               <div style={{
                                 background: questionCount > 0 ? '#28a745' : '#ffc107',
@@ -814,7 +1134,8 @@ const AdminDashboard = () => {
                                 fontWeight: '700',
                                 fontSize: '14px',
                                 minWidth: '40px',
-                                textAlign: 'center'
+                                textAlign: 'center',
+                                flexShrink: 0
                               }}>
                                 {questionCount}
                               </div>
@@ -824,7 +1145,9 @@ const AdminDashboard = () => {
                               display: 'flex',
                               gap: '8px',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'flex-end',
+                              minWidth: '120px',
+                              flexWrap: 'wrap'
                             }}>
                               <button
                                 onClick={(e) => {
@@ -832,6 +1155,7 @@ const AdminDashboard = () => {
                                   handleEditChapterClick(chapter);
                                 }}
                                 className="action-button edit-button"
+                                style={{ flexShrink: 0 }}
                               >
                                 Edit
                               </button>
@@ -841,6 +1165,7 @@ const AdminDashboard = () => {
                                   handleDeleteChapter(chapter._id);
                                 }}
                                 className="action-button delete-button"
+                                style={{ flexShrink: 0 }}
                               >
                                 Delete
                               </button>
@@ -909,6 +1234,49 @@ const AdminDashboard = () => {
               </div>
             );
           })}
+
+          {/* No results found message */}
+          {searchQuery && filteredSubjects.length === 0 && (
+            <div style={{
+              gridColumn: '1 / -1',
+              textAlign: 'center',
+              padding: '60px 20px',
+              background: '#f8f9fa',
+              borderRadius: '16px',
+              border: '2px dashed #dee2e6'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+              <div style={{
+                color: '#6c757d',
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '8px'
+              }}>
+                No results found for "{searchQuery}"
+              </div>
+              <div style={{
+                color: '#6c757d',
+                fontSize: '14px',
+                marginBottom: '16px'
+              }}>
+                Try searching for subjects, chapters, or their descriptions
+              </div>
+              <button
+                onClick={() => handleSearchChange('')}
+                style={{
+                  background: '#007bff',
+                  border: 'none',
+                  color: 'white',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear Search
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Simple Floating Add Button */}
@@ -954,151 +1322,337 @@ const AdminDashboard = () => {
   // Quiz Management view
   const QuizManagementView = () => (
     <div>
-      <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap' }}>
-        {quizzes.map(quiz => {
-          const chapter = chapters.find(c => c._id === quiz.chapter_id);
+      <style>{`
+        .quiz-card {
+          background: #ffffff;
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          border: 1px solid #e9ecef;
+          position: relative;
+          min-height: 400px;
+          cursor: pointer;
+          will-change: transform;
+          transform: translate3d(0, 0, 0);
+          transition: transform 0.2s ease;
+          margin-bottom: 30px;
+        }
+        
+        .quiz-card:hover {
+          transform: translate3d(0, -8px, 0);
+        }
+        
+        .question-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          align-items: center;
+          gap: 12px;
+          padding: 16px 20px;
+          border-radius: 12px;
+          border: 1px solid #e9ecef;
+          cursor: pointer;
+          will-change: transform;
+          transform: translate3d(0, 0, 0);
+          transition: transform 0.15s ease;
+          margin-bottom: 8px;
+        }
+        
+        @media (max-width: 768px) {
+          .question-row {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          
+          .question-row > div:nth-child(1) {
+            order: 1;
+          }
+          
+          .question-row > div:nth-child(2) {
+            order: 2;
+            justify-self: start;
+            margin-left: 20px;
+          }
+          
+          .question-row > div:nth-child(2) > div {
+            justify-content: flex-start;
+          }
+        }
+        
+        @media (max-width: 768px) {
+          .quiz-card {
+            min-height: auto;
+          }
+        }
+        
+        .quiz-row-even {
+          background: #f8f9fa;
+        }
+        
+        .quiz-row-odd {
+          background: #ffffff;
+        }
+        
+        .action-button {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+          transition: all 0.2s ease;
+          text-decoration: none;
+          display: inline-block;
+          text-align: center;
+        }
+        
+        .edit-button {
+          background:rgb(80, 158, 241);
+          color: white;
+        }
+        
+        .edit-button:hover {
+          background:rgb(31, 116, 212);
+          transform: translateY(-1px);
+        }
+        
+        .delete-button {
+          background:rgb(241, 60, 78);
+          color: white;
+        }
+        
+        .delete-button:hover {
+          background: #c82333;
+          transform: translateY(-1px);
+        }
+      `}</style>
+      
+      <div style={{ 
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
+        gap: '30px',
+        padding: '0 20px'
+      }}>
+        {/* Search Results Info */}
+        {searchQuery && (
+          <div style={{
+            gridColumn: '1 / -1',
+            background: 'linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%)',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            border: '1px solid #ff9800',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            <span style={{ fontSize: '16px' }}>🔍</span>
+            <span style={{ color: '#f57c00', fontWeight: '600', fontSize: '14px' }}>
+              Search results for "{searchQuery}" - Found {filteredQuizzes.length} quiz(es)
+            </span>
+            <button
+              onClick={() => handleSearchChange('')}
+              style={{
+                marginLeft: 'auto',
+                background: '#ff9800',
+                border: 'none',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
+        {filteredQuizzes.map(quiz => {
+          const chapter = chapters.find(c => {
+            const chapterId = typeof quiz.chapter_id === 'object' && quiz.chapter_id !== null 
+              ? quiz.chapter_id._id || quiz.chapter_id.id 
+              : quiz.chapter_id;
+            return c._id === chapterId || c._id === String(chapterId) || String(c._id) === String(chapterId);
+          });
+          const subject = chapter ? subjects.find(s => {
+            const subjectId = typeof chapter.subject_id === 'object' && chapter.subject_id !== null 
+              ? chapter.subject_id._id || chapter.subject_id.id 
+              : chapter.subject_id;
+            return s._id === subjectId || s._id === String(subjectId) || String(s._id) === String(subjectId);
+          }) : null;
           const quizQuestions = getQuestionsByQuiz(quiz._id);
           
           return (
-            <div key={quiz._id} style={{
-              width: '45%',
-              border: '2px solid #000',
-              borderRadius: '15px',
-              backgroundColor: '#fff',
-              marginBottom: '20px'
-            }}>
+            <div key={quiz._id} className="quiz-card">
               {/* Quiz Header */}
               <div style={{
-                textAlign: 'center',
-                padding: '15px',
-                borderBottom: '1px solid #ccc',
-                fontSize: '20px',
-                fontWeight: 'bold',
-                backgroundColor: '#f8f9fa'
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                padding: '24px 30px',
+                color: 'white'
               }}>
-                Quiz{quiz.chapter_id?.name ? ` (${quiz.chapter_id.name})` : chapter?.name ? ` (${chapter.name})` : ''}
+                                <h3 style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <span style={{
+                    fontSize: '28px',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    padding: '8px 12px',
+                    borderRadius: '12px'
+                  }}>
+                    📝
+                  </span>
+                  {subject?.name || 'Unknown Subject'} - {chapter?.name || 'Unknown Chapter'}
+                </h3>
+                <div style={{
+                  marginTop: '8px',
+                  fontSize: '14px',
+                  opacity: 0.9
+                }}>
+                  Quiz
+                </div>
               </div>
 
-              {/* Table Header - Exactly matching wireframe */}
+              {/* Quiz Info Section */}
               <div style={{
-                backgroundColor: '#17a2b8',
-                color: 'white',
-                padding: '12px 15px',
-                margin: '15px 15px 0 15px',
-                borderRadius: '8px 8px 0 0',
-                display: 'flex',
-                alignItems: 'center',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                border: '1px solid #17a2b8'
+                background: '#f8f9fa',
+                padding: '20px 30px',
+                borderBottom: '1px solid #e9ecef'
               }}>
-                <div style={{ width: '15%', textAlign: 'center' }}>
-                  ID
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                alignItems: 'center',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    fontWeight: '600',
+                    fontSize: '16px',
+                    color: '#495057'
+              }}>
+                    📋 Question Title
                 </div>
-                <div style={{ width: '50%', textAlign: 'center', borderLeft: '1px solid rgba(255,255,255,0.3)', borderRight: '1px solid rgba(255,255,255,0.3)', paddingLeft: '10px' }}>
-                  Q_Title
-                </div>
-                <div style={{ width: '35%', textAlign: 'center' }}>
-                  Action
+                  <div style={{
+                    fontWeight: '600',
+                    fontSize: '16px',
+                    color: '#495057',
+                    textAlign: 'center'
+                  }}>
+                    ⚙️ Actions
+                  </div>
                 </div>
               </div>
 
-              {/* Question Rows - Exactly matching wireframe */}
-              <div style={{ margin: '0 15px 15px 15px', border: '1px solid #17a2b8', borderTop: 'none', minHeight: '120px' }}>
+              {/* Questions List */}
+              <div style={{ 
+                padding: '20px 30px',
+                minHeight: '200px',
+                background: '#fff'
+              }}>
                 {quizQuestions.length > 0 ? (
-                  quizQuestions.map((question, index) => (
-                    <div key={question._id} style={{
+                  <div>
+                    {quizQuestions.map((question, index) => {
+                      return (
+                        <div 
+                          key={`${question._id}-${index}`} 
+                          className={`question-row ${index % 2 === 0 ? 'quiz-row-even' : 'quiz-row-odd'}`}
+                        >
+                          <div style={{ 
+                            fontWeight: '600',
+                            fontSize: '16px',
+                            color: '#2c3e50',
                       display: 'flex',
                       alignItems: 'center',
-                      padding: '12px 15px',
-                      borderBottom: index < quizQuestions.length - 1 ? '1px solid #dee2e6' : 'none',
-                      fontSize: '14px',
-                      backgroundColor: index % 2 === 0 ? '#f8f9fa' : '#ffffff'
+                            gap: '12px'
                     }}>
                       <div style={{ 
-                        fontWeight: 'bold', 
-                        width: '15%', 
-                        textAlign: 'center',
-                        fontSize: '16px',
-                        color: '#17a2b8'
+                              width: '24px',
+                              height: '24px',
+                              background: '#667eea',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '12px',
+                              fontWeight: '700'
                       }}>
                         {index + 1}
                       </div>
-                      <div style={{ 
-                        width: '50%', 
-                        textAlign: 'left',
-                        paddingLeft: '15px',
-                        paddingRight: '15px',
-                        fontWeight: '500',
-                        borderLeft: '1px solid #dee2e6',
-                        borderRight: '1px solid #dee2e6'
+                            <span style={{ 
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
                       }}>
                         {question.question_title || 'Untitled Question'}
-                      </div>
-                      <div style={{ 
-                        width: '35%', 
-                        textAlign: 'center',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        gap: '5px',
-                        alignItems: 'center'
-                      }}>
-                        <span 
-                          style={{ 
-                            color: '#007bff', 
-                            cursor: 'pointer',
-                            textDecoration: 'none',
-                            fontSize: '14px',
-                            fontWeight: '500'
-                          }}
-                          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                          onClick={() => handleEditQuestionClick(question)}
+                            </span>
+                                                </div>
+                          
+                          <div style={{ 
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            minWidth: '120px',
+                            flexWrap: 'wrap'
+                          }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditQuestionClick(question);
+                              }}
+                              className="action-button edit-button"
+                              style={{ flexShrink: 0 }}
                         >
                           Edit
-                        </span>
-                        <span style={{ color: '#666', fontWeight: 'bold' }}>/</span>
-                        <span 
-                          style={{ 
-                            color: '#dc3545', 
-                            cursor: 'pointer',
-                            textDecoration: 'none',
-                            fontSize: '14px',
-                            fontWeight: '500'
-                          }}
-                          onMouseOver={(e) => e.target.style.textDecoration = 'underline'}
-                          onMouseOut={(e) => e.target.style.textDecoration = 'none'}
-                          onClick={() => handleDeleteQuestion(question._id)}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteQuestion(question._id);
+                              }}
+                              className="action-button delete-button"
+                              style={{ flexShrink: 0 }}
                         >
                           Delete
-                        </span>
+                            </button>
                       </div>
                     </div>
-                  ))
+                      );
+                    })}
+                  </div>
                 ) : (
                   <div style={{
                     textAlign: 'center',
-                    color: '#666',
-                    fontStyle: 'italic',
-                    padding: '40px 20px',
-                    backgroundColor: '#f8f9fa'
+                    padding: '60px 20px',
+                    background: '#f8f9fa',
+                    borderRadius: '16px',
+                    border: '2px dashed #dee2e6'
                   }}>
-                    No questions yet. Click "+ Question" to add one.
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                    <div style={{
+                      color: '#6c757d',
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      marginBottom: '8px'
+                  }}>
+                      No questions yet. Click the button below to add your first question
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* Add Question Button */}
-              <div style={{ textAlign: 'center', padding: '20px' }}>
+              <div style={{ 
+                padding: '20px 30px',
+                borderTop: '1px solid #e9ecef',
+                background: '#f8f9fa'
+              }}>
                 <button 
-                  style={{
-                    backgroundColor: '#ffc107',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 15px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold'
-                  }}
                   onClick={() => {
                     console.log('=== DEBUGGING QUIZ MODAL OPENING ===');
                     console.log('Full quiz object:', quiz);
@@ -1134,49 +1688,106 @@ const AdminDashboard = () => {
                     
                     setShowQuestionModal(true);
                   }}
+                  style={{
+                    background: '#28a745',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '12px 24px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '15px',
+                    width: '100%',
+                    transition: 'transform 0.1s ease',
+                    willChange: 'transform',
+                    transform: 'translate3d(0, 0, 0)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translate3d(0, -2px, 0)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translate3d(0, 0, 0)';
+                  }}
                 >
-                  + Question
+                  ➕ Add New Question
                 </button>
               </div>
             </div>
           );
         })}
 
-        {/* Add Quiz Button */}
-        <div style={{
-          width: '45%',
-          height: '200px',
-          border: '2px dashed #ffc107',
-          borderRadius: '15px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          marginBottom: '20px'
-        }}
-        onClick={() => setShowQuizModal(true)}
-        >
-          <button style={{
-            backgroundColor: '#ffc107',
-            border: 'none',
-            borderRadius: '8px',
-            padding: '15px 25px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '18px'
+        {/* No results found message for quizzes */}
+        {searchQuery && filteredQuizzes.length === 0 && (
+          <div style={{
+            gridColumn: '1 / -1',
+            textAlign: 'center',
+            padding: '60px 20px',
+            background: '#f8f9fa',
+            borderRadius: '16px',
+            border: '2px dashed #dee2e6'
           }}>
-            + New Quiz
-          </button>
-        </div>
-      </div>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔍</div>
+            <div style={{
+              color: '#6c757d',
+              fontSize: '18px',
+              fontWeight: '600',
+              marginBottom: '8px'
+            }}>
+              No quizzes found for "{searchQuery}"
+            </div>
+            <div style={{
+              color: '#6c757d',
+              fontSize: '14px',
+              marginBottom: '16px'
+            }}>
+              Try searching for quiz topics, chapter names, or subject names
+            </div>
+            <button
+              onClick={() => handleSearchChange('')}
+              style={{
+                background: '#ffc107',
+                border: 'none',
+                color: '#000',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              Clear Search
+            </button>
+          </div>
+        )}
 
-      <div style={{ 
-        color: '#007bff', 
-        fontSize: '18px', 
-        fontStyle: 'italic',
-        marginTop: '20px'
-      }}>
-        All quizzes here ...
+        {/* Add Quiz Card - Only show when not searching or when there are results */}
+        {(!searchQuery || filteredQuizzes.length > 0) && (
+          <div className="quiz-card" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            border: '2px dashed #667eea',
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)'
+          }}
+          onClick={() => setShowQuizModal(true)}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+            <button style={{
+                background: '#667eea',
+              border: 'none',
+                borderRadius: '12px',
+              padding: '15px 25px',
+                color: '#fff',
+              cursor: 'pointer',
+                fontWeight: '600',
+              fontSize: '18px'
+            }}>
+                ➕ Add New Quiz
+            </button>
+          </div>
+        </div>
+        )}
       </div>
     </div>
   );
@@ -1282,6 +1893,326 @@ const AdminDashboard = () => {
       name: stat.name,
       attempts: stat.totalAttempts
     }));
+  };
+
+  // Export View Component
+  const ExportView = () => {
+    return (
+      <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '30px',
+          borderRadius: '20px',
+          color: 'white',
+          marginBottom: '30px',
+          textAlign: 'center'
+        }}>
+          <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '700' }}>📥 Data Export Center</h1>
+          <p style={{ margin: '10px 0 0 0', fontSize: '16px', opacity: 0.9 }}>
+            Export your quiz data in CSV format for analysis and reporting
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+          gap: '25px'
+        }}>
+          {/* Quiz Data Export */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>📊</div>
+              <h3 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>Quiz Data</h3>
+              <p style={{ color: '#6c757d', margin: 0, fontSize: '14px' }}>
+                Export comprehensive quiz information including subjects, chapters, dates, and question counts
+              </p>
+            </div>
+            <button
+              onClick={handleExportQuizData}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px 25px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              📥 Export Quiz Data
+            </button>
+          </div>
+
+          {/* Quiz Attempts Export */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>📝</div>
+              <h3 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>Quiz Attempts</h3>
+              <p style={{ color: '#6c757d', margin: 0, fontSize: '14px' }}>
+                Export detailed student attempt data including scores, timestamps, and performance metrics
+              </p>
+            </div>
+            <button
+              onClick={handleExportQuizAttempts}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #007bff 0%, #6610f2 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px 25px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(0, 123, 255, 0.3)'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              📥 Export Quiz Attempts
+            </button>
+          </div>
+
+          {/* User Engagement Export */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>👥</div>
+              <h3 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>User Engagement</h3>
+              <p style={{ color: '#6c757d', margin: 0, fontSize: '14px' }}>
+                Export user activity data including engagement metrics and participation statistics
+              </p>
+            </div>
+            <button
+              onClick={handleExportUserEngagement}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #fd7e14 0%, #e83e8c 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px 25px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(253, 126, 20, 0.3)'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              📥 Export User Engagement
+            </button>
+          </div>
+        </div>
+
+        <div style={{
+          background: '#f8f9fa',
+          borderRadius: '15px',
+          padding: '25px',
+          marginTop: '30px',
+          border: '1px solid #e9ecef'
+        }}>
+          <h4 style={{ color: '#2c3e50', margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            ℹ️ Export Information
+          </h4>
+          <ul style={{ color: '#6c757d', margin: 0, paddingLeft: '20px' }}>
+            <li>All exports are generated in CSV format for easy analysis in spreadsheet applications</li>
+            <li>Data includes comprehensive information with proper headers and formatting</li>
+            <li>Files are automatically downloaded to your default download folder</li>
+            <li>Export data is current as of the time of generation</li>
+          </ul>
+        </div>
+      </div>
+    );
+  };
+
+  // Notifications View Component
+  const NotificationsView = () => {
+    return (
+      <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '30px',
+          borderRadius: '20px',
+          color: 'white',
+          marginBottom: '30px',
+          textAlign: 'center'
+        }}>
+          <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '700' }}>🔔 Notification Center</h1>
+          <p style={{ margin: '10px 0 0 0', fontSize: '16px', opacity: 0.9 }}>
+            Manage and trigger email notifications for user engagement
+          </p>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+          gap: '25px'
+        }}>
+          {/* Daily Reminders */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>⏰</div>
+              <h3 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>Daily Reminders</h3>
+              <p style={{ color: '#6c757d', margin: 0, fontSize: '14px' }}>
+                Send reminder emails to users who haven't been active in the last 24 hours
+              </p>
+            </div>
+            <button
+              onClick={handleTriggerDailyReminders}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #ffc107 0%, #fd7e14 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px 25px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(255, 193, 7, 0.3)'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              📧 Send Daily Reminders
+            </button>
+          </div>
+
+          {/* Monthly Reports */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>📊</div>
+              <h3 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>Monthly Reports</h3>
+              <p style={{ color: '#6c757d', margin: 0, fontSize: '14px' }}>
+                Send comprehensive monthly activity reports to all users with their performance metrics
+              </p>
+            </div>
+            <button
+              onClick={handleTriggerMonthlyReports}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px 25px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              📧 Send Monthly Reports
+            </button>
+          </div>
+
+          {/* Engagement Notifications */}
+          <div style={{
+            background: '#fff',
+            borderRadius: '15px',
+            padding: '30px',
+            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '48px', marginBottom: '15px' }}>📈</div>
+              <h3 style={{ color: '#2c3e50', margin: '0 0 10px 0' }}>Engagement Report</h3>
+              <p style={{ color: '#6c757d', margin: 0, fontSize: '14px' }}>
+                Send admin engagement notifications with user activity statistics and inactive user alerts
+              </p>
+            </div>
+            <button
+              onClick={handleTriggerEngagementNotification}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #dc3545 0%, #e83e8c 100%)',
+                border: 'none',
+                borderRadius: '12px',
+                padding: '15px 25px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease',
+                boxShadow: '0 4px 12px rgba(220, 53, 69, 0.3)'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
+            >
+              📧 Send Engagement Report
+            </button>
+          </div>
+        </div>
+
+
+        <div style={{
+          background: '#f8f9fa',
+          borderRadius: '15px',
+          padding: '25px',
+          marginTop: '30px',
+          border: '1px solid #e9ecef'
+        }}>
+          <h4 style={{ color: '#2c3e50', margin: '0 0 15px 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            📅 Scheduled Notifications
+          </h4>
+          <div style={{ color: '#6c757d' }}>
+            <p style={{ margin: '0 0 10px 0' }}>
+              <strong>Automatic Schedule:</strong>
+            </p>
+            <ul style={{ margin: 0, paddingLeft: '20px' }}>
+              <li><strong>Daily Reminders:</strong> Sent automatically at 9:00 AM every day to inactive users</li>
+              <li><strong>Monthly Reports:</strong> Sent automatically on the 1st of every month at 1:00 AM</li>
+              <li><strong>Weekly Engagement Reports:</strong> Sent to admins every Monday at 8:00 AM</li>
+            </ul>
+            <p style={{ margin: '15px 0 0 0', fontSize: '14px', fontStyle: 'italic' }}>
+              Use the buttons above to manually trigger notifications for testing or immediate sending.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Summary Charts view - using real data
@@ -1468,76 +2399,103 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '0' }}>
-      {/* Enhanced Main Header */}
+    <>
+      {/* Global Modal Styles */}
+      <style>{`
+        .modal-overlay-responsive {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          z-index: 1050 !important;
+          overflow-y: auto !important;
+          padding: 20px !important;
+        }
+        
+        .modal-overlay-responsive > div {
+          margin: auto !important;
+        }
+        
+        /* Prevent text selection in modals */
+        .modal-overlay-responsive * {
+          -webkit-user-select: text;
+          -moz-user-select: text;
+          -ms-user-select: text;
+          user-select: text;
+        }
+        
+        /* Smooth scrolling within modal content */
+        .modal-overlay-responsive > div {
+          scroll-behavior: smooth;
+        }
+      `}</style>
+      
+      <div className="container-fluid" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '0' }}>
+      {/* Compact Enhanced Header */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%)',
-        borderRadius: '0 0 24px 24px',
-        padding: '40px 30px',
+        borderRadius: '20px',
+        padding: '20px 25px',
         marginBottom: '20px',
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
+        boxShadow: '0 8px 25px rgba(102, 126, 234, 0.25)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        maxWidth: '1300px',
+        margin: '0 auto 20px auto'
       }}>
-        {/* Background Decorative Elements */}
+        {/* Subtle Background Decorations */}
         <div style={{
           position: 'absolute',
-          top: '-50px',
-          right: '-50px',
-          width: '200px',
-          height: '200px',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%)',
-          borderRadius: '50%'
-        }} />
-        
-        <div style={{
-          position: 'absolute',
-          bottom: '-30px',
-          left: '-30px',
-          width: '150px',
-          height: '150px',
+          top: '-20px',
+          right: '-20px',
+          width: '80px',
+          height: '80px',
           background: 'radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%)',
           borderRadius: '50%'
         }} />
         
         <div style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '300px',
-          height: '300px',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 70%)',
-          borderRadius: '50%',
-          zIndex: 0
+          bottom: '-15px',
+          left: '-15px',
+          width: '60px',
+          height: '60px',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)',
+          borderRadius: '50%'
         }} />
         
         {/* Header Content */}
         <div style={{
           position: 'relative',
           zIndex: 1,
-          textAlign: 'center'
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px'
         }}>
-          {/* Main Title */}
+          {/* Main Title Row */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '20px',
-            marginBottom: '16px'
+            gap: '12px'
           }}>
             <div style={{
               background: 'rgba(255, 255, 255, 0.2)',
-              padding: '16px',
-              borderRadius: '20px',
+              padding: '8px',
+              borderRadius: '12px',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
             }}>
               <span style={{
-                fontSize: '48px',
-                filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
+                fontSize: '28px',
+                filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
               }}>
                 🎯
               </span>
@@ -1545,11 +2503,11 @@ const AdminDashboard = () => {
             
             <h1 style={{
               color: '#fff',
-              fontSize: 'clamp(32px, 5vw, 48px)',
-              fontWeight: '800',
+              fontSize: 'clamp(24px, 4vw, 32px)',
+              fontWeight: '700',
               margin: 0,
-              textShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-              letterSpacing: '-0.02em',
+              textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+              letterSpacing: '-0.01em',
               background: 'linear-gradient(45deg, #ffffff, #f0f0f0)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -1560,15 +2518,15 @@ const AdminDashboard = () => {
             
             <div style={{
               background: 'rgba(255, 255, 255, 0.2)',
-              padding: '16px',
-              borderRadius: '20px',
+              padding: '8px',
+              borderRadius: '12px',
               backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255, 255, 255, 0.3)',
-              boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)'
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
             }}>
               <span style={{
-                fontSize: '48px',
-                filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2))'
+                fontSize: '28px',
+                filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
               }}>
                 📚
               </span>
@@ -1578,56 +2536,56 @@ const AdminDashboard = () => {
           {/* Subtitle */}
           <div style={{
             color: 'rgba(255, 255, 255, 0.9)',
-            fontSize: '18px',
+            fontSize: '14px',
             fontWeight: '500',
-            textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-            marginBottom: '24px',
-            letterSpacing: '0.5px'
+            textShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+            letterSpacing: '0.3px'
           }}>
             Administrative Dashboard
           </div>
           
-          {/* Feature Pills */}
+          {/* Compact Feature Pills */}
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            gap: '12px',
-            flexWrap: 'wrap'
+            gap: '8px',
+            flexWrap: 'wrap',
+            marginTop: '4px'
           }}>
             {[
-              { icon: '📝', text: 'Create Quizzes' },
-              { icon: '📊', text: 'Track Performance' },
-              { icon: '👥', text: 'Manage Users' },
-              { icon: '⚙️', text: 'System Control' }
+              { icon: '📝', text: 'Quizzes' },
+              { icon: '📊', text: 'Analytics' },
+              { icon: '👥', text: 'Users' },
+              { icon: '⚙️', text: 'Settings' }
             ].map((feature, index) => (
               <div key={index} style={{
-                background: 'rgba(255, 255, 255, 0.15)',
-                backdropFilter: 'blur(10px)',
+                background: 'rgba(255, 255, 255, 0.12)',
+                backdropFilter: 'blur(8px)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '25px',
-                padding: '8px 16px',
+                borderRadius: '20px',
+                padding: '4px 10px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                fontSize: '14px',
+                gap: '5px',
+                fontSize: '12px',
                 color: 'rgba(255, 255, 255, 0.95)',
                 fontWeight: '500',
                 transition: 'all 0.2s ease',
                 cursor: 'pointer',
-                boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.25)';
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)';
+                e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.target.style.transform = 'translateY(-1px)';
+                e.target.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.15)';
+                e.target.style.background = 'rgba(255, 255, 255, 0.12)';
                 e.target.style.transform = 'translateY(0px)';
-                e.target.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+                e.target.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.1)';
               }}
               >
-                <span style={{ fontSize: '16px' }}>{feature.icon}</span>
+                <span style={{ fontSize: '14px' }}>{feature.icon}</span>
                 <span>{feature.text}</span>
               </div>
             ))}
@@ -1637,194 +2595,674 @@ const AdminDashboard = () => {
       
       {/* Navigation and Content Container */}
       <div className="container-fluid px-3">
-        <NavigationBar />
+        <NavigationBar 
+          view={view}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+          onViewChange={handleViewChange}
+        />
         
         <div style={{ paddingTop: '0' }}>
           {view === 'subjects' && <SubjectsView />}
           {view === 'quizzes' && <QuizManagementView />}
           {view === 'summary' && <SummaryView />}
+          {view === 'export' && <ExportView />}
+          {view === 'notifications' && <NotificationsView />}
         </div>
       </div>
 
       {/* Subject Modal */}
-      {showSubjectModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title">New Subject</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowSubjectModal(false)}></button>
-              </div>
-              <form onSubmit={handleCreateSubject}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name :</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
-                      value={subjectForm.name}
-                      onChange={(e) => setSubjectForm({...subjectForm, name: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description :</label>
-                    <textarea 
-                      className="form-control"
-                      rows="3"
-                      value={subjectForm.description}
-                      onChange={(e) => setSubjectForm({...subjectForm, description: e.target.value})}
-                      required
-                    ></textarea>
-                    <small className="text-muted">Note: may include more input fields...</small>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowSubjectModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Save</button>
-                </div>
-              </form>
+      {showSubjectModal && createPortal(
+        <div 
+          className="modal-overlay-responsive" 
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSubjectModal(false);
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div 
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              width: '500px',
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              backgroundColor: '#007bff',
+              color: 'white',
+              padding: '20px',
+              borderRadius: '12px 12px 0 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>New Subject</h5>
+              <button 
+                type="button" 
+                onClick={() => setShowSubjectModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ✕
+              </button>
             </div>
+            <form onSubmit={handleCreateSubject}>
+              <div style={{ padding: '25px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Name :
+                  </label>
+                  <input 
+                    type="text" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #007bff',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={subjectForm.name}
+                    onChange={(e) => setSubjectForm({...subjectForm, name: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#0056b3'}
+                    onBlur={(e) => e.target.style.borderColor = '#007bff'}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Description :
+                  </label>
+                  <textarea 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #007bff',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={subjectForm.description}
+                    onChange={(e) => setSubjectForm({...subjectForm, description: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#0056b3'}
+                    onBlur={(e) => e.target.style.borderColor = '#007bff'}
+                  />
+                  <small style={{ color: '#6c757d', fontSize: '12px' }}>
+                    Note: may include more input fields...
+                  </small>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                padding: '20px',
+                borderTop: '1px solid #e9ecef',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowSubjectModal(false)}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#545b62'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#6c757d'}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    backgroundColor: '#007bff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#0056b3'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#007bff'}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Chapter Modal */}
-      {showChapterModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-success text-white">
-                <h5 className="modal-title">New Chapter</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowChapterModal(false)}></button>
-              </div>
-              <form onSubmit={handleCreateChapter}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name :</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
-                      value={chapterForm.name}
-                      onChange={(e) => setChapterForm({...chapterForm, name: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description :</label>
-                    <textarea 
-                      className="form-control"
-                      rows="3"
-                      value={chapterForm.description}
-                      onChange={(e) => setChapterForm({...chapterForm, description: e.target.value})}
-                      required
-                    ></textarea>
-                    <small className="text-muted">Note: may include more input fields...</small>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowChapterModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-success">Save</button>
-                </div>
-              </form>
+      {showChapterModal && createPortal(
+        <div 
+          className="modal-overlay-responsive" 
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            // Close modal if clicking on backdrop
+            if (e.target === e.currentTarget) {
+              setShowChapterModal(false);
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div 
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              width: '500px',
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              backgroundColor: '#28a745',
+              color: 'white',
+              padding: '20px',
+              borderRadius: '12px 12px 0 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>New Chapter</h5>
+              <button 
+                type="button" 
+                onClick={() => setShowChapterModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ✕
+              </button>
             </div>
+            <form onSubmit={handleCreateChapter}>
+              <div style={{ padding: '25px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Name :
+                  </label>
+                  <input 
+                    type="text" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #28a745',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={chapterForm.name}
+                    onChange={(e) => setChapterForm({...chapterForm, name: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#1e7e34'}
+                    onBlur={(e) => e.target.style.borderColor = '#28a745'}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Description :
+                  </label>
+                  <textarea 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #28a745',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={chapterForm.description}
+                    onChange={(e) => setChapterForm({...chapterForm, description: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#1e7e34'}
+                    onBlur={(e) => e.target.style.borderColor = '#28a745'}
+                  />
+                  <small style={{ color: '#6c757d', fontSize: '12px' }}>
+                    Note: may include more input fields...
+                  </small>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                padding: '20px',
+                borderTop: '1px solid #e9ecef',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowChapterModal(false)}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#545b62'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#6c757d'}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    backgroundColor: '#28a745',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#1e7e34'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#28a745'}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Quiz Modal */}
-      {showQuizModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-warning text-dark">
-                <h5 className="modal-title">New Quiz</h5>
-                <button type="button" className="btn-close" onClick={() => setShowQuizModal(false)}></button>
-              </div>
-              <form onSubmit={handleCreateQuiz}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Chapter ID :</label>
-                    <select 
-                      className="form-select"
-                      value={quizForm.chapter_id}
-                      onChange={(e) => setQuizForm({...quizForm, chapter_id: e.target.value})}
-                      required
-                    >
-                      <option value="">Select Chapter</option>
-                      {chapters.map(chapter => (
-                        <option key={chapter._id} value={chapter._id}>{chapter.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Date :</label>
-                    <input 
-                      type="date" 
-                      className="form-control"
-                      value={quizForm.date}
-                      onChange={(e) => setQuizForm({...quizForm, date: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Duration :</label>
-                    <input 
-                      type="number" 
-                      className="form-control"
-                      placeholder="Minutes"
-                      value={quizForm.duration}
-                      onChange={(e) => setQuizForm({...quizForm, duration: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Title/Remarks :</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
-                      placeholder="Enter quiz title or remarks"
-                      value={quizForm.title}
-                      onChange={(e) => setQuizForm({...quizForm, title: e.target.value})}
-                    />
-                    <small className="text-muted">Optional: Enter a title or remarks for this quiz</small>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowQuizModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-warning">Save</button>
-                </div>
-              </form>
+      {showQuizModal && createPortal(
+        <div 
+          className="modal-overlay-responsive" 
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowQuizModal(false);
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div 
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              width: '500px',
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              backgroundColor: '#ffc107',
+              color: '#000',
+              padding: '20px',
+              borderRadius: '12px 12px 0 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>New Quiz</h5>
+              <button 
+                type="button" 
+                onClick={() => setShowQuizModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#000',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ✕
+              </button>
             </div>
+            <form onSubmit={handleCreateQuiz}>
+              <div style={{ padding: '25px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Chapter ID :
+                  </label>
+                  <select 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#fff'
+                    }}
+                    value={quizForm.chapter_id}
+                    onChange={(e) => setQuizForm({...quizForm, chapter_id: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  >
+                    <option value="">Select Chapter</option>
+                    {chapters.map(chapter => (
+                      <option key={chapter._id} value={chapter._id}>{chapter.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Date :
+                  </label>
+                  <input 
+                    type="date" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={quizForm.date}
+                    onChange={(e) => setQuizForm({...quizForm, date: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Duration :
+                  </label>
+                  <input 
+                    type="number" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Minutes"
+                    value={quizForm.duration}
+                    onChange={(e) => setQuizForm({...quizForm, duration: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Title/Remarks :
+                  </label>
+                  <input 
+                    type="text" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    placeholder="Enter quiz title or remarks"
+                    value={quizForm.title}
+                    onChange={(e) => setQuizForm({...quizForm, title: e.target.value})}
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                  <small style={{ color: '#6c757d', fontSize: '12px' }}>
+                    Optional: Enter a title or remarks for this quiz
+                  </small>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                padding: '20px',
+                borderTop: '1px solid #e9ecef',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowQuizModal(false)}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#545b62'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#6c757d'}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    backgroundColor: '#ffc107',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: '#000',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#e0a800'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffc107'}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Question Modal */}
-      {showQuestionModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: '#fff',
-            border: '3px solid #000',
-            borderRadius: '20px',
-            padding: '0',
-            width: '700px',
-            maxWidth: '95vw',
-            maxHeight: '95vh',
-            overflow: 'auto',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-          }}>
+      {showQuestionModal && createPortal(
+        <div 
+          className="modal-overlay-responsive" 
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowQuestionModal(false);
+              setCurrentQuiz(null);
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div 
+            style={{
+              backgroundColor: '#fff',
+              border: '3px solid #000',
+              borderRadius: '20px',
+              padding: '0',
+              width: '700px',
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div style={{
               backgroundColor: '#ffc107',
@@ -2389,148 +3827,531 @@ const AdminDashboard = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Chapter Modal */}
-      {showEditChapterModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-warning text-dark">
-                <h5 className="modal-title">Edit Chapter</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEditChapterModal(false)}></button>
-              </div>
-              <form onSubmit={handleEditChapter}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name :</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
-                      value={editChapterForm.name}
-                      onChange={(e) => setEditChapterForm({...editChapterForm, name: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Description :</label>
-                    <textarea 
-                      className="form-control"
-                      rows="3"
-                      value={editChapterForm.description}
-                      onChange={(e) => setEditChapterForm({...editChapterForm, description: e.target.value})}
-                      required
-                    ></textarea>
-                    <small className="text-muted">Note: may include more input fields...</small>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditChapterModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-warning">Update</button>
-                </div>
-              </form>
+      {showEditChapterModal && createPortal(
+        <div 
+          className="modal-overlay-responsive" 
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEditChapterModal(false);
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div 
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              width: '500px',
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              backgroundColor: '#ffc107',
+              color: '#000',
+              padding: '20px',
+              borderRadius: '12px 12px 0 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>Edit Chapter</h5>
+              <button 
+                type="button" 
+                onClick={() => setShowEditChapterModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#000',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ✕
+              </button>
             </div>
+            <form onSubmit={handleEditChapter}>
+              <div style={{ padding: '25px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Name :
+                  </label>
+                  <input 
+                    type="text" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={editChapterForm.name}
+                    onChange={(e) => setEditChapterForm({...editChapterForm, name: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Description :
+                  </label>
+                  <textarea 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={editChapterForm.description}
+                    onChange={(e) => setEditChapterForm({...editChapterForm, description: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                  <small style={{ color: '#6c757d', fontSize: '12px' }}>
+                    Note: may include more input fields...
+                  </small>
+                </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                padding: '20px',
+                borderTop: '1px solid #e9ecef',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowEditChapterModal(false)}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#545b62'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#6c757d'}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    backgroundColor: '#ffc107',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: '#000',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#e0a800'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffc107'}
+                >
+                  Update
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Question Modal */}
-      {showEditQuestionModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-warning text-dark">
-                <h5 className="modal-title">Edit Question</h5>
-                <button type="button" className="btn-close" onClick={() => setShowEditQuestionModal(false)}></button>
-              </div>
-              <form onSubmit={handleEditQuestion}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Question Title :</label>
+      {showEditQuestionModal && createPortal(
+        <div 
+          className="modal-overlay-responsive" 
+          style={{
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEditQuestionModal(false);
+            }
+          }}
+          onWheel={(e) => e.stopPropagation()}
+        >
+          <div 
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              width: '600px',
+              maxWidth: '95vw',
+              maxHeight: '95vh',
+              overflow: 'auto',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              backgroundColor: '#ffc107',
+              color: '#000',
+              padding: '20px',
+              borderRadius: '12px 12px 0 0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h5 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>Edit Question</h5>
+              <button 
+                type="button" 
+                onClick={() => setShowEditQuestionModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#000',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  width: '30px',
+                  height: '30px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleEditQuestion}>
+              <div style={{ padding: '25px' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Question Title :
+                  </label>
+                  <input 
+                    type="text" 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={editQuestionForm.question_title}
+                    onChange={(e) => setEditQuestionForm({...editQuestionForm, question_title: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                </div>
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Question Statement :
+                  </label>
+                  <textarea 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box'
+                    }}
+                    value={editQuestionForm.question_statement}
+                    onChange={(e) => setEditQuestionForm({...editQuestionForm, question_statement: e.target.value})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  />
+                </div>
+                
+                {/* Options Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '15px',
+                  marginBottom: '20px'
+                }}>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      marginBottom: '8px',
+                      fontWeight: 'bold',
+                      color: '#333'
+                    }}>
+                      Option 1 :
+                    </label>
                     <input 
                       type="text" 
-                      className="form-control"
-                      value={editQuestionForm.question_title}
-                      onChange={(e) => setEditQuestionForm({...editQuestionForm, question_title: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Question Statement :</label>
-                    <textarea 
-                      className="form-control"
-                      rows="3"
-                      value={editQuestionForm.question_statement}
-                      onChange={(e) => setEditQuestionForm({...editQuestionForm, question_statement: e.target.value})}
-                      required
-                    ></textarea>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Option 1 :</label>
-                    <input 
-                      type="text" 
-                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '2px solid #ffc107',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
                       value={editQuestionForm.option1}
                       onChange={(e) => setEditQuestionForm({...editQuestionForm, option1: e.target.value})}
                       required
+                      onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                      onBlur={(e) => e.target.style.borderColor = '#ffc107'}
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Option 2 :</label>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      marginBottom: '8px',
+                      fontWeight: 'bold',
+                      color: '#333'
+                    }}>
+                      Option 2 :
+                    </label>
                     <input 
                       type="text" 
-                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '2px solid #ffc107',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
                       value={editQuestionForm.option2}
                       onChange={(e) => setEditQuestionForm({...editQuestionForm, option2: e.target.value})}
                       required
+                      onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                      onBlur={(e) => e.target.style.borderColor = '#ffc107'}
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Option 3 :</label>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      marginBottom: '8px',
+                      fontWeight: 'bold',
+                      color: '#333'
+                    }}>
+                      Option 3 :
+                    </label>
                     <input 
                       type="text" 
-                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '2px solid #ffc107',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
                       value={editQuestionForm.option3}
                       onChange={(e) => setEditQuestionForm({...editQuestionForm, option3: e.target.value})}
                       required
+                      onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                      onBlur={(e) => e.target.style.borderColor = '#ffc107'}
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Option 4 :</label>
+                  <div>
+                    <label style={{ 
+                      display: 'block',
+                      marginBottom: '8px',
+                      fontWeight: 'bold',
+                      color: '#333'
+                    }}>
+                      Option 4 :
+                    </label>
                     <input 
                       type="text" 
-                      className="form-control"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '2px solid #ffc107',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'border-color 0.3s ease',
+                        boxSizing: 'border-box'
+                      }}
                       value={editQuestionForm.option4}
                       onChange={(e) => setEditQuestionForm({...editQuestionForm, option4: e.target.value})}
                       required
+                      onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                      onBlur={(e) => e.target.style.borderColor = '#ffc107'}
                     />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label">Correct Option :</label>
-                    <select 
-                      className="form-select"
-                      value={editQuestionForm.correct_option}
-                      onChange={(e) => setEditQuestionForm({...editQuestionForm, correct_option: parseInt(e.target.value)})}
-                      required
-                    >
-                      <option value={1}>Option 1</option>
-                      <option value={2}>Option 2</option>
-                      <option value={3}>Option 3</option>
-                      <option value={4}>Option 4</option>
-                    </select>
-                  </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditQuestionModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-warning">Update</button>
+                
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ 
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontWeight: 'bold',
+                    color: '#333'
+                  }}>
+                    Correct Option :
+                  </label>
+                  <select 
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '2px solid #ffc107',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      outline: 'none',
+                      transition: 'border-color 0.3s ease',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#fff'
+                    }}
+                    value={editQuestionForm.correct_option}
+                    onChange={(e) => setEditQuestionForm({...editQuestionForm, correct_option: parseInt(e.target.value)})}
+                    required
+                    onFocus={(e) => e.target.style.borderColor = '#e0a800'}
+                    onBlur={(e) => e.target.style.borderColor = '#ffc107'}
+                  >
+                    <option value={1}>Option 1</option>
+                    <option value={2}>Option 2</option>
+                    <option value={3}>Option 3</option>
+                    <option value={4}>Option 4</option>
+                  </select>
                 </div>
-              </form>
-            </div>
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                padding: '20px',
+                borderTop: '1px solid #e9ecef',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '0 0 12px 12px'
+              }}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowEditQuestionModal(false)}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#545b62'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#6c757d'}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    backgroundColor: '#ffc107',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '10px 20px',
+                    color: '#000',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'background-color 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#e0a800'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#ffc107'}
+                >
+                  Update
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+      </div>
+    </>
   );
 };
 

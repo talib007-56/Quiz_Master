@@ -34,9 +34,9 @@ const Login = () => {
       if (result.success) {
         // Redirect based on user role
         if (result.user.role === 'admin') {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         } else {
-          navigate('/user');
+          navigate('/user', { replace: true });
         }
       } else {
         setError(result.error || 'Failed to log in');

@@ -53,4 +53,8 @@ exports.checkUserExists = async (req, res, next) => {
     console.error('Error in checkUserExists:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-}; 
+};
+
+// Aliases for consistency
+exports.authenticateToken = exports.verifyToken;
+exports.requireAdmin = exports.isAdmin; 

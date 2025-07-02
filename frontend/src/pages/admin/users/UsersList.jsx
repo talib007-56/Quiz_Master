@@ -8,7 +8,7 @@ const UsersList = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
+    full_name: '',
     email: '',
     role: ''
   });
@@ -46,7 +46,7 @@ const UsersList = () => {
       setShowEditModal(false);
       setSelectedUser(null);
       setFormData({
-        name: '',
+        full_name: '',
         email: '',
         role: ''
       });
@@ -72,7 +72,7 @@ const UsersList = () => {
   const openEditModal = (user) => {
     setSelectedUser(user);
     setFormData({
-      name: user.name,
+      full_name: user.full_name,
       email: user.email,
       role: user.role
     });
@@ -114,7 +114,7 @@ const UsersList = () => {
           <tbody>
             {users.map(user => (
               <tr key={user._id}>
-                <td>{user.name}</td>
+                <td>{user.full_name}</td>
                 <td>{user.email}</td>
                 <td>
                   <span className={`badge ${user.role === 'admin' ? 'bg-danger' : 'bg-primary'}`}>
@@ -143,8 +143,8 @@ const UsersList = () => {
 
       {/* Edit User Modal */}
       {showEditModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog" style={{ margin: 0, width: '90%', maxWidth: '500px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit User</h5>
@@ -157,13 +157,13 @@ const UsersList = () => {
               <form onSubmit={handleEditUser}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label htmlFor="name" className="form-label">Name</label>
+                    <label htmlFor="full_name" className="form-label">Full Name</label>
                     <input
                       type="text"
                       className="form-control"
-                      id="name"
-                      name="name"
-                      value={formData.name}
+                      id="full_name"
+                      name="full_name"
+                      value={formData.full_name}
                       onChange={handleInputChange}
                       required
                     />
@@ -214,10 +214,7 @@ const UsersList = () => {
         </div>
       )}
 
-      {/* Modal Backdrop */}
-      {showEditModal && (
-        <div className="modal-backdrop show"></div>
-      )}
+
     </div>
   );
 };

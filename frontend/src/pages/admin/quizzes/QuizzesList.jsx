@@ -81,9 +81,16 @@ const QuizzesList = () => {
   };
 
   const handleDeleteQuiz = async (id) => {
-    if (window.confirm('Are you sure you want to delete this quiz?')) {
+    if (window.confirm('Are you sure you want to delete this quiz?\n\nThis will also delete:\n• All questions in this quiz\n• All user scores for this quiz\n\nThis action cannot be undone.')) {
       try {
-        await quizzesAPI.delete(id);
+        const response = await quizzesAPI.delete(id);
+        console.log('Quiz deletion response:', response.data);
+        
+        // Show success message with details
+        if (response.data.deletedQuestions || response.data.deletedScores) {
+          alert(`Quiz deleted successfully!\n\n• Deleted ${response.data.deletedQuestions || 0} questions\n• Deleted ${response.data.deletedScores || 0} user scores`);
+        }
+        
         fetchQuizzes();
       } catch (error) {
         setError('Failed to delete quiz');
@@ -131,50 +138,88 @@ const QuizzesList = () => {
         </div>
       )}
 
-      <div className="table-responsive">
-        <table className="table table-hover">
-          <thead>
-            <tr>
-              <th>Chapter</th>
-              <th>Subject</th>
-              <th>Date</th>
-              <th>Duration</th>
-              <th>Remarks</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {quizzes.map(quiz => (
-              <tr key={quiz._id}>
-                <td>{quiz.chapter_id.name}</td>
-                <td>{quiz.chapter_id.subject_id.name}</td>
-                <td>{new Date(quiz.date_of_quiz).toLocaleDateString()}</td>
-                <td>{quiz.time_duration} minutes</td>
-                <td>{quiz.remarks}</td>
-                <td>
-                  <button
-                    className="btn btn-sm btn-outline-primary me-2"
-                    onClick={() => openEditModal(quiz)}
-                  >
-                    <i className="bi bi-pencil"></i>
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => handleDeleteQuiz(quiz._id)}
-                  >
-                    <i className="bi bi-trash"></i>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="row">
+        {quizzes.map(quiz => (
+          <div className="col-md-6 col-lg-4 mb-4" key={quiz._id}>
+            <div className="card h-100 shadow-sm quiz-card">
+              <div className="card-body d-flex flex-column">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <h5 className="card-title mb-0">
+                    <i className="bi bi-puzzle-fill text-primary me-2"></i>
+                    Quiz
+                  </h5>
+                  <div className="dropdown">
+                    <button 
+                      className="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                      type="button" 
+                      data-bs-toggle="dropdown"
+                    >
+                      <i className="bi bi-three-dots"></i>
+                    </button>
+                    <ul className="dropdown-menu dropdown-menu-end">
+                      <li>
+                        <button
+                          className="dropdown-item"
+                          onClick={() => openEditModal(quiz)}
+                        >
+                          <i className="bi bi-pencil me-2"></i>Edit
+                        </button>
+                      </li>
+                      <li>
+                        <button
+                          className="dropdown-item text-danger"
+                          onClick={() => handleDeleteQuiz(quiz._id)}
+                        >
+                          <i className="bi bi-trash me-2"></i>Delete
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="mb-3">
+                  <div className="d-flex align-items-center mb-2">
+                    <i className="bi bi-book text-success me-2"></i>
+                    <span className="fw-semibold">Subject:</span>
+                    <span className="ms-2">{quiz.chapter_id.subject_id.name}</span>
+                  </div>
+                  <div className="d-flex align-items-center mb-2">
+                    <i className="bi bi-bookmark text-warning me-2"></i>
+                    <span className="fw-semibold">Chapter:</span>
+                    <span className="ms-2">{quiz.chapter_id.name}</span>
+                  </div>
+                  <div className="d-flex align-items-center mb-2">
+                    <i className="bi bi-calendar3 text-info me-2"></i>
+                    <span className="fw-semibold">Date:</span>
+                    <span className="ms-2">{new Date(quiz.date_of_quiz).toLocaleDateString()}</span>
+                  </div>
+                  <div className="d-flex align-items-center mb-2">
+                    <i className="bi bi-clock text-secondary me-2"></i>
+                    <span className="fw-semibold">Duration:</span>
+                    <span className="ms-2">{quiz.time_duration} minutes</span>
+                  </div>
+                </div>
+                
+                {quiz.remarks && (
+                  <div className="mt-auto">
+                    <div className="border-top pt-2">
+                      <small className="text-muted">
+                        <i className="bi bi-chat-text me-1"></i>
+                        {quiz.remarks}
+                      </small>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Add Quiz Modal */}
       {showAddModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog" style={{ margin: 0, width: '90%', maxWidth: '500px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Add Quiz</h5>
@@ -261,8 +306,8 @@ const QuizzesList = () => {
 
       {/* Edit Quiz Modal */}
       {showEditModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog" style={{ margin: 0, width: '90%', maxWidth: '500px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit Quiz</h5>
@@ -347,10 +392,7 @@ const QuizzesList = () => {
         </div>
       )}
 
-      {/* Modal Backdrop */}
-      {(showAddModal || showEditModal) && (
-        <div className="modal-backdrop show"></div>
-      )}
+
     </div>
   );
 };

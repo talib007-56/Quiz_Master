@@ -113,6 +113,24 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
+  // Refresh current user data
+  const refreshUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const response = await axiosInstance.get('/auth/me');
+        setCurrentUser(response.data.user);
+        return response.data.user;
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+      // If refresh fails, user might need to log in again
+      if (error.response?.status === 401) {
+        handleLogout();
+      }
+    }
+  };
+
   const value = {
     currentUser,
     loading,
@@ -120,6 +138,7 @@ export const AuthProvider = ({ children }) => {
     login: handleLogin,
     register: handleRegister,
     logout: handleLogout,
+    refreshUser,
     isAuthenticated: !!currentUser
   };
 

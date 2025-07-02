@@ -50,7 +50,8 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   register: (userData) => api.post('/auth/register', userData),
-  getCurrentUser: () => api.get('/auth/me')
+  getCurrentUser: () => api.get('/auth/me'),
+  changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword })
 };
 
 // Subjects API calls
@@ -110,6 +111,34 @@ export const usersAPI = {
   getProfile: () => api.get('/auth/me'),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`)
+};
+
+// Export API calls (admin only)
+export const exportAPI = {
+  exportQuizData: () => api.get('/export/quiz-data', { responseType: 'blob' }),
+  exportQuizAttempts: () => api.get('/export/quiz-attempts', { responseType: 'blob' }),
+  exportUserEngagement: () => api.get('/export/user-engagement', { responseType: 'blob' })
+};
+
+// Notification API calls
+export const notificationAPI = {
+  updatePreferences: (userId, preferences) => api.put(`/notifications/preferences/${userId}`, preferences),
+  triggerDailyReminders: () => api.post('/notifications/trigger/daily-reminders'),
+  triggerMonthlyReports: () => api.post('/notifications/trigger/monthly-reports'),
+  triggerEngagementNotification: () => api.post('/notifications/trigger/engagement-notification'),
+  testEmail: (email) => api.post('/notifications/test-email', { email })
+};
+
+// Helper function to download CSV files
+export const downloadCSV = (data, filename) => {
+  const url = window.URL.createObjectURL(new Blob([data]));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
 };
 
 // Export API instance for custom calls

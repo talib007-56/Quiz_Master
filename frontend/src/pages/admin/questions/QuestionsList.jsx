@@ -167,7 +167,11 @@ const QuestionsList = () => {
           <tbody>
             {questions.map(question => (
               <tr key={question._id}>
-                <td>{question.quiz_id.chapter_id.name}</td>
+                <td>
+                  {question.quiz_id && question.quiz_id.chapter_id 
+                    ? question.quiz_id.chapter_id.name 
+                    : 'Quiz Deleted'}
+                </td>
                 <td>{question.question_statement}</td>
                 <td>
                   <ol className="mb-0">
@@ -182,6 +186,7 @@ const QuestionsList = () => {
                   <button
                     className="btn btn-sm btn-outline-primary me-2"
                     onClick={() => openEditModal(question)}
+                    disabled={!question.quiz_id}
                   >
                     <i className="bi bi-pencil"></i>
                   </button>
@@ -200,8 +205,8 @@ const QuestionsList = () => {
 
       {/* Add Question Modal */}
       {showAddModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-lg">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog modal-lg" style={{ margin: 0, width: '90%', maxWidth: '800px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Add Question</h5>
@@ -226,7 +231,9 @@ const QuestionsList = () => {
                       <option value="">Select a quiz</option>
                       {quizzes.map(quiz => (
                         <option key={quiz._id} value={quiz._id}>
-                          {quiz.chapter_id.name} - {new Date(quiz.date_of_quiz).toLocaleDateString()}
+                          {quiz.chapter_id && quiz.chapter_id.name 
+                            ? `${quiz.chapter_id.name} - ${new Date(quiz.date_of_quiz).toLocaleDateString()}`
+                            : `Quiz ${quiz._id.slice(-6)} - ${new Date(quiz.date_of_quiz).toLocaleDateString()}`}
                         </option>
                       ))}
                     </select>
@@ -328,8 +335,8 @@ const QuestionsList = () => {
 
       {/* Edit Question Modal */}
       {showEditModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-lg">
+        <div className="modal show d-block" tabIndex="-1" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050 }}>
+          <div className="modal-dialog modal-lg" style={{ margin: 0, width: '90%', maxWidth: '800px' }}>
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit Question</h5>
@@ -354,7 +361,9 @@ const QuestionsList = () => {
                       <option value="">Select a quiz</option>
                       {quizzes.map(quiz => (
                         <option key={quiz._id} value={quiz._id}>
-                          {quiz.chapter_id.name} - {new Date(quiz.date_of_quiz).toLocaleDateString()}
+                          {quiz.chapter_id && quiz.chapter_id.name 
+                            ? `${quiz.chapter_id.name} - ${new Date(quiz.date_of_quiz).toLocaleDateString()}`
+                            : `Quiz ${quiz._id.slice(-6)} - ${new Date(quiz.date_of_quiz).toLocaleDateString()}`}
                         </option>
                       ))}
                     </select>
@@ -454,10 +463,7 @@ const QuestionsList = () => {
         </div>
       )}
 
-      {/* Modal Backdrop */}
-      {(showAddModal || showEditModal) && (
-        <div className="modal-backdrop show"></div>
-      )}
+
     </div>
   );
 };

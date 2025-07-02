@@ -6,23 +6,41 @@ const UserLayout = () => {
   const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Initialize sidebar state from localStorage, default to false if not found
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const saved = localStorage.getItem('userSidebarOpen');
+    return saved ? JSON.parse(saved) : false;
+  });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+  const [hoveredLink, setHoveredLink] = useState(null);
 
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 992;
       setIsMobile(mobile);
+      // On mobile, always close sidebar for better UX
       if (mobile) {
         setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
+        localStorage.setItem('userSidebarOpen', JSON.stringify(false));
       }
+      // On desktop, keep the saved state from localStorage
     };
 
-    handleResize(); // Call once on mount
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    // Set initial state
+    handleResize();
+    
+    // Add resize listener with debounce
+    let timeoutId;
+    const debouncedResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleResize, 100);
+    };
+    
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -31,7 +49,10 @@ const UserLayout = () => {
   };
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    // Persist sidebar state to localStorage
+    localStorage.setItem('userSidebarOpen', JSON.stringify(newState));
   };
 
   const getPageTitle = () => {
@@ -41,21 +62,59 @@ const UserLayout = () => {
     return 'Quiz Master';
   };
 
+  const getLinkStyle = (linkPath, isActive) => {
+    const isHovered = hoveredLink === linkPath;
+    let backgroundColor = 'transparent';
+    
+    if (isActive) {
+      backgroundColor = 'rgba(255, 255, 255, 0.2)';
+    } else if (isHovered) {
+      backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    }
+    
+    return {
+      fontWeight: isActive ? '600' : '400',
+      backgroundColor: backgroundColor,
+      transition: 'all 0.3s ease'
+    };
+  };
+
   return (
-    <div className="d-flex min-vh-100">
+    <>
+      <style>{`
+        .user-sidebar {
+          will-change: width, transform;
+        }
+        
+        .user-main-content {
+          will-change: margin-left;
+        }
+        
+        @media (max-width: 991.98px) {
+          .user-sidebar {
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+          }
+        }
+        
+        .user-nav-link {
+          transition: all 0.3s ease;
+        }
+      `}</style>
+      <div className="d-flex min-vh-100">
       {/* Sidebar */}
       <div 
-        className="bg-primary text-white position-relative"
+        className="bg-primary text-white user-sidebar"
         style={{
-          width: sidebarOpen ? '280px' : '0px',
-          transition: 'width 0.3s ease',
+          width: isMobile ? (sidebarOpen ? '280px' : '0px') : (sidebarOpen ? '280px' : '0px'),
+          transition: 'width 0.3s ease, transform 0.3s ease',
           overflow: 'hidden',
           minHeight: '100vh',
-          transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)',
+          transform: isMobile && !sidebarOpen ? 'translateX(-280px)' : 'translateX(0)',
           position: isMobile ? 'fixed' : 'relative',
-          zIndex: 1050,
+          zIndex: isMobile ? 1050 : 'auto',
           left: 0,
-          top: 0
+          top: 0,
+          flexShrink: 0
         }}
       >
         <div className="d-flex flex-column h-100">
@@ -88,10 +147,14 @@ const UserLayout = () => {
                   to="/user"
                   end
                   className={({isActive}) => 
-                    `nav-link d-flex align-items-center p-3 rounded ${
-                      isActive ? 'nav-link-active' : 'nav-link-inactive'
+                    `nav-link user-nav-link d-flex align-items-center p-3 rounded text-decoration-none ${
+                      isActive ? 'text-white' : 'text-light'
                     }`
                   }
+                  style={({isActive}) => getLinkStyle('/user', isActive)}
+                  onMouseEnter={() => setHoveredLink('/user')}
+                  onMouseLeave={() => setHoveredLink(null)}
+                  onClick={() => isMobile && setSidebarOpen(false)}
                 >
                   <i className="bi bi-speedometer2 me-3 fs-5"></i>
                   <span>Dashboard</span>
@@ -102,10 +165,14 @@ const UserLayout = () => {
                 <NavLink
                   to="/user/subjects"
                   className={({isActive}) => 
-                    `nav-link d-flex align-items-center p-3 rounded ${
-                      isActive ? 'nav-link-active' : 'nav-link-inactive'
+                    `nav-link user-nav-link d-flex align-items-center p-3 rounded text-decoration-none ${
+                      isActive ? 'text-white' : 'text-light'
                     }`
                   }
+                  style={({isActive}) => getLinkStyle('/user/subjects', isActive)}
+                  onMouseEnter={() => setHoveredLink('/user/subjects')}
+                  onMouseLeave={() => setHoveredLink(null)}
+                  onClick={() => isMobile && setSidebarOpen(false)}
                 >
                   <i className="bi bi-book me-3 fs-5"></i>
                   <span>Subjects</span>
@@ -116,10 +183,14 @@ const UserLayout = () => {
                 <NavLink
                   to="/user/profile"
                   className={({isActive}) => 
-                    `nav-link d-flex align-items-center p-3 rounded ${
-                      isActive ? 'nav-link-active' : 'nav-link-inactive'
+                    `nav-link user-nav-link d-flex align-items-center p-3 rounded text-decoration-none ${
+                      isActive ? 'text-white' : 'text-light'
                     }`
                   }
+                  style={({isActive}) => getLinkStyle('/user/profile', isActive)}
+                  onMouseEnter={() => setHoveredLink('/user/profile')}
+                  onMouseLeave={() => setHoveredLink(null)}
+                  onClick={() => isMobile && setSidebarOpen(false)}
                 >
                   <i className="bi bi-person-circle me-3 fs-5"></i>
                   <span>My Profile</span>
@@ -128,23 +199,7 @@ const UserLayout = () => {
             </ul>
           </nav>
 
-          {/* User Info & Logout */}
           <div className="border-top border-light border-opacity-25 p-3">
-            <div className="bg-white bg-opacity-10 rounded p-3 mb-3">
-              <div className="d-flex align-items-center">
-                <div className="bg-white rounded-circle p-2 me-2">
-                  <i className="bi bi-person-fill text-primary"></i>
-                </div>
-                <div className="flex-grow-1">
-                  <div className="fw-medium text-white small">
-                    {currentUser?.full_name || 'User'}
-                  </div>
-                  <small className="text-light">
-                    {currentUser?.email || 'user@example.com'}
-                  </small>
-                </div>
-              </div>
-            </div>
             
             <button 
               onClick={handleLogout}
@@ -161,13 +216,20 @@ const UserLayout = () => {
       {isMobile && sidebarOpen && (
         <div 
           className="position-fixed w-100 h-100 bg-dark bg-opacity-50"
-          style={{ zIndex: 1040 }}
+          style={{ zIndex: 1049, top: 0, left: 0 }}
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <div className="flex-grow-1 d-flex flex-column bg-light">
+      <div 
+        className="flex-grow-1 d-flex flex-column bg-light user-main-content"
+        style={{
+          marginLeft: isMobile ? '0' : '0',
+          width: isMobile ? '100%' : 'auto',
+          transition: 'margin-left 0.3s ease'
+        }}
+      >
         {/* Top Header */}
         <header className="bg-white shadow-sm border-bottom p-3">
           <div className="d-flex justify-content-between align-items-center">
@@ -175,9 +237,12 @@ const UserLayout = () => {
               <button 
                 className="btn btn-primary me-3"
                 onClick={toggleSidebar}
-                style={{ display: sidebarOpen && !isMobile ? 'none' : 'block' }}
+                style={{ 
+                  display: (!isMobile && sidebarOpen) ? 'none' : 'block',
+                  transition: 'all 0.3s ease'
+                }}
               >
-                <i className="bi bi-list"></i>
+                <i className={`bi ${sidebarOpen ? 'bi-x-lg' : 'bi-list'}`}></i>
               </button>
               <div>
                 <h2 className="mb-0 text-primary fw-bold">Quiz Master</h2>
@@ -227,6 +292,7 @@ const UserLayout = () => {
         </main>
       </div>
     </div>
+    </>
   );
 };
 

@@ -44,6 +44,11 @@ const questionSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Performance Indexes
+questionSchema.index({ quiz_id: 1 }); // Index for quiz-specific questions
+questionSchema.index({ created_at: -1 }); // Index for chronological queries
+questionSchema.index({ question_title: 'text', question_statement: 'text' }); // Text search index
+
 const Question = mongoose.model('Question', questionSchema);
 
 module.exports = Question; 

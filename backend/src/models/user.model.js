@@ -30,7 +30,41 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'user'],
     default: 'user'
   },
+  phone: {
+    type: String,
+    default: ''
+  },
+  department: {
+    type: String,
+    default: ''
+  },
+  bio: {
+    type: String,
+    default: ''
+  },
   created_at: {
+    type: Date,
+    default: Date.now
+  },
+  notification_preferences: {
+    daily_reminders: {
+      type: Boolean,
+      default: true
+    },
+    monthly_reports: {
+      type: Boolean,
+      default: true
+    },
+    engagement_notifications: {
+      type: Boolean,
+      default: true
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now
+    }
+  },
+  last_activity: {
     type: Date,
     default: Date.now
   }
@@ -58,6 +92,13 @@ userSchema.pre('save', async function(next) {
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
+// Performance Indexes
+userSchema.index({ email: 1 }); // Unique index for login queries
+userSchema.index({ role: 1 }); // Index for role-based queries
+userSchema.index({ last_activity: -1 }); // Index for activity tracking
+userSchema.index({ created_at: -1 }); // Index for user registration analytics
+userSchema.index({ 'notification_preferences.daily_reminders': 1 }); // Index for notification filtering
 
 const User = mongoose.model('User', userSchema);
 

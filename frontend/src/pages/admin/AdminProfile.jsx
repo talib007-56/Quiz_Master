@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { authAPI, usersAPI } from '../../services/api';
 
 const AdminProfile = () => {
   const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, refreshUser } = useAuth();
   
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [profileData, setProfileData] = useState({
     full_name: '',
     email: '',
@@ -23,15 +26,21 @@ const AdminProfile = () => {
     department: '',
     bio: ''
   });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     if (currentUser) {
       const userData = {
         full_name: currentUser.full_name || 'Administrator',
         email: currentUser.email || 'admin@quizmaster.com',
-        phone: currentUser.phone || '+1 (555) 123-4567',
-        department: currentUser.department || 'Information Technology',
-        bio: currentUser.bio || 'System Administrator responsible for managing the Quiz Master platform and ensuring smooth operations.',
+        phone: currentUser.phone || '',
+        department: currentUser.department || '',
+        bio: currentUser.bio || '',
         created_at: currentUser.created_at || new Date().toISOString()
       };
       setProfileData(userData);
@@ -49,12 +58,25 @@ const AdminProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Here you would typically make an API call to update the profile
-      // await userAPI.updateProfile(editFormData);
+      // Update profile via API  
+      const userId = currentUser.id || currentUser._id;
       
-      // For now, just update local state
+      const response = await usersAPI.update(userId, {
+        full_name: editFormData.full_name,
+        email: editFormData.email,
+        phone: editFormData.phone,
+        department: editFormData.department,
+        bio: editFormData.bio
+      });
+      
+      // Update local state with saved data
       setProfileData(editFormData);
       setIsEditing(false);
+      
+      // Refresh user data in auth context
+      if (refreshUser) {
+        await refreshUser();
+      }
       
       // Show success message
       const successAlert = document.createElement('div');
@@ -75,7 +97,24 @@ const AdminProfile = () => {
       
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Error updating profile. Please try again.');
+      const errorMessage = error.response?.data?.message || 'Error updating profile. Please try again.';
+      
+      // Show error message
+      const errorAlert = document.createElement('div');
+      errorAlert.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+      errorAlert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; width: 300px;';
+      errorAlert.innerHTML = `
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        ${errorMessage}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(errorAlert);
+      
+      setTimeout(() => {
+        if (document.body.contains(errorAlert)) {
+          document.body.removeChild(errorAlert);
+        }
+      }, 5000);
     } finally {
       setLoading(false);
     }
@@ -109,6 +148,72 @@ const AdminProfile = () => {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error when user starts typing
+    if (passwordError) setPasswordError('');
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate passwords
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters long');
+      return;
+    }
+    
+    setPasswordLoading(true);
+    setPasswordError('');
+    
+    try {
+      const response = await authAPI.changePassword(
+        passwordForm.currentPassword,
+        passwordForm.newPassword
+      );
+      
+      // Show success message
+      const successAlert = document.createElement('div');
+      successAlert.className = 'alert alert-success alert-dismissible fade show position-fixed';
+      successAlert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; width: 300px;';
+      successAlert.innerHTML = `
+        <i class="bi bi-check-circle me-2"></i>
+        Password changed successfully!
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      document.body.appendChild(successAlert);
+      
+      setTimeout(() => {
+        if (document.body.contains(successAlert)) {
+          document.body.removeChild(successAlert);
+        }
+      }, 3000);
+      
+      // Reset form and close modal
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setShowPasswordModal(false);
+    } catch (error) {
+      console.error('Error changing password:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to change password. Please try again.';
+      setPasswordError(errorMessage);
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -145,18 +250,7 @@ const AdminProfile = () => {
           gap: '20px'
         }}>
           <div className="d-flex align-items-center gap-3">
-            <button 
-              onClick={() => navigate('/admin')}
-              className="btn btn-outline-light rounded-pill px-3 py-2"
-              style={{
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                backdropFilter: 'blur(10px)',
-                background: 'rgba(255, 255, 255, 0.1)'
-              }}
-            >
-              <i className="bi bi-arrow-left me-2"></i>
-              Back to Dashboard
-            </button>
+            
             
             <div>
               <h1 style={{
@@ -198,64 +292,9 @@ const AdminProfile = () => {
       {/* Profile Content */}
       <div className="container-fluid px-4">
         <div className="row">
-          {/* Profile Card */}
-          <div className="col-lg-4 mb-4">
-            <div className="card border-0 shadow-sm h-100">
-              <div className="card-body text-center p-4">
-                {/* Profile Avatar */}
-                <div className="mb-4">
-                  <div className="mx-auto mb-3" style={{
-                    width: '120px',
-                    height: '120px',
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '2.5rem',
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
-                    border: '4px solid #fff'
-                  }}>
-                    {getInitials(profileData.full_name)}
-                  </div>
-                  
-                  <h4 className="mb-1">{profileData.full_name}</h4>
-                  <p className="text-muted mb-0">{profileData.department}</p>
-                  <small className="text-muted">
-                    <i className="bi bi-calendar me-1"></i>
-                    Member since {formatDate(profileData.created_at)}
-                  </small>
-                </div>
-
-                {/* Quick Stats */}
-                <div className="row text-center">
-                  <div className="col-4">
-                    <div className="p-2">
-                      <div className="h5 text-primary mb-0">12</div>
-                      <small className="text-muted">Active Quizzes</small>
-                    </div>
-                  </div>
-                  <div className="col-4">
-                    <div className="p-2">
-                      <div className="h5 text-success mb-0">156</div>
-                      <small className="text-muted">Total Users</small>
-                    </div>
-                  </div>
-                  <div className="col-4">
-                    <div className="p-2">
-                      <div className="h5 text-warning mb-0">8</div>
-                      <small className="text-muted">Subjects</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Profile Information */}
-          <div className="col-lg-8 mb-4">
+          <div className="col-lg-20 mb-4">
             <div className="card border-0 shadow-sm">
               <div className="card-header bg-white border-bottom">
                 <div className="d-flex justify-content-between align-items-center">
@@ -431,7 +470,10 @@ const AdminProfile = () => {
                         <h6 className="mb-1">Password</h6>
                         <small className="text-muted">Last changed 30 days ago</small>
                       </div>
-                      <button className="btn btn-outline-primary btn-sm">
+                      <button 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => setShowPasswordModal(true)}
+                      >
                         <i className="bi bi-key me-1"></i>
                         Change
                       </button>
@@ -456,6 +498,161 @@ const AdminProfile = () => {
           </div>
         </div>
       </div>
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '100%', 
+          height: '100%', 
+          backgroundColor: 'rgba(0, 0, 0, 0.5)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          zIndex: 1050 
+        }}>
+          <div className="modal-dialog" style={{ margin: 0, width: '90%', maxWidth: '500px' }}>
+            <div className="modal-content" style={{ borderRadius: '20px', border: 'none', overflow: 'hidden' }}>
+              <div className="modal-header" style={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                color: 'white', 
+                border: 'none' 
+              }}>
+                <h5 className="modal-title">
+                  <i className="bi bi-key me-2"></i>
+                  Change Password
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordForm({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: ''
+                    });
+                    setPasswordError('');
+                  }}
+                ></button>
+              </div>
+              
+              <form onSubmit={handlePasswordSubmit}>
+                <div className="modal-body" style={{ padding: '30px' }}>
+                  {passwordError && (
+                    <div className="alert alert-danger d-flex align-items-center" role="alert">
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      {passwordError}
+                    </div>
+                  )}
+                  
+                  <div className="mb-4">
+                    <label htmlFor="currentPassword" className="form-label fw-semibold">
+                      <i className="bi bi-lock me-2 text-muted"></i>
+                      Current Password
+                    </label>
+                    <input
+                      type="password"
+                      className="form-control form-control-lg"
+                      id="currentPassword"
+                      name="currentPassword"
+                      value={passwordForm.currentPassword}
+                      onChange={handlePasswordChange}
+                      required
+                      style={{ borderRadius: '12px', border: '2px solid #e9ecef' }}
+                    />
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="newPassword" className="form-label fw-semibold">
+                      <i className="bi bi-key me-2 text-muted"></i>
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      className="form-control form-control-lg"
+                      id="newPassword"
+                      name="newPassword"
+                      value={passwordForm.newPassword}
+                      onChange={handlePasswordChange}
+                      required
+                      minLength="6"
+                      style={{ borderRadius: '12px', border: '2px solid #e9ecef' }}
+                    />
+                    <small className="text-muted">Password must be at least 6 characters long</small>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <label htmlFor="confirmPassword" className="form-label fw-semibold">
+                      <i className="bi bi-check2-circle me-2 text-muted"></i>
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      className="form-control form-control-lg"
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      value={passwordForm.confirmPassword}
+                      onChange={handlePasswordChange}
+                      required
+                      style={{ borderRadius: '12px', border: '2px solid #e9ecef' }}
+                    />
+                  </div>
+                </div>
+                
+                <div className="modal-footer" style={{ 
+                  padding: '20px 30px', 
+                  backgroundColor: '#f8f9fa', 
+                  border: 'none' 
+                }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-lg px-4"
+                    onClick={() => {
+                      setShowPasswordModal(false);
+                      setPasswordForm({
+                        currentPassword: '',
+                        newPassword: '',
+                        confirmPassword: ''
+                      });
+                      setPasswordError('');
+                    }}
+                    disabled={passwordLoading}
+                    style={{ borderRadius: '12px' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn btn-lg px-4"
+                    disabled={passwordLoading}
+                    style={{ 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none',
+                      color: 'white',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    {passwordLoading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                        Changing...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-check me-2"></i>
+                        Change Password
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -15,12 +15,13 @@ import Register from './pages/auth/Register';
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProfile from './pages/admin/AdminProfile';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 import SubjectsList from './pages/admin/subjects/SubjectsList';
 import ChaptersList from './pages/admin/chapters/ChaptersList';
 import QuizzesList from './pages/admin/quizzes/QuizzesList';
 import QuestionsList from './pages/admin/questions/QuestionsList';
 import UsersList from './pages/admin/users/UsersList';
-import ReportsList from './pages/admin/reports/ReportsList';
+
 
 // User Pages
 import UserDashboard from './pages/user/Dashboard';
@@ -29,22 +30,35 @@ import UserChapters from './pages/user/chapters/ChaptersList';
 import UserQuizzes from './pages/user/quizzes/QuizzesList';
 import AttemptQuiz from './pages/user/quizzes/AttemptQuiz';
 import QuizResults from './pages/user/quizzes/QuizResults';
+import QuizReview from './pages/user/quizzes/QuizReview';
 import UserProfile from './pages/user/Profile';
 
 // Context
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Auth guard for protected routes
 const PrivateRoute = ({ children, requiredRole }) => {
+  const { currentUser, loading } = useAuth();
   const token = localStorage.getItem('token');
   const userRole = localStorage.getItem('userRole');
   
-  if (!token) {
-    return <Navigate to="/login" />;
+  // Show loading spinner while authentication is being checked
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!token || !currentUser) {
+    return <Navigate to="/login" replace />;
   }
   
   if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to={userRole === 'admin' ? '/admin' : '/'} />;
+    return <Navigate to={userRole === 'admin' ? '/admin' : '/user'} replace />;
   }
   
   return children;
@@ -57,7 +71,7 @@ function App() {
         <Routes>
           {/* Auth Routes */}
           <Route path="/" element={<AuthLayout />}>
-            <Route index element={<Navigate to="/login" />} />
+            <Route index element={<Navigate to="/login" replace />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
           </Route>
@@ -73,12 +87,13 @@ function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="profile" element={<AdminProfile />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="subjects" element={<SubjectsList />} />
             <Route path="chapters" element={<ChaptersList />} />
             <Route path="quizzes" element={<QuizzesList />} />
             <Route path="questions" element={<QuestionsList />} />
             <Route path="users" element={<UsersList />} />
-            <Route path="reports" element={<ReportsList />} />
+
           </Route>
           
           {/* User Routes */}
@@ -96,11 +111,12 @@ function App() {
             <Route path="quizzes/:chapterId" element={<UserQuizzes />} />
             <Route path="quiz/:quizId/attempt" element={<AttemptQuiz />} />
             <Route path="quiz/:quizId/results" element={<QuizResults />} />
+            <Route path="quiz-review/:scoreId" element={<QuizReview />} />
             <Route path="profile" element={<UserProfile />} />
           </Route>
           
           {/* Catch-all redirect */}
-          <Route path="*" element={<Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>
     </AuthProvider>

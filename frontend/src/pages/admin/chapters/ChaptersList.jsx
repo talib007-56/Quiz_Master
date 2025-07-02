@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { chaptersAPI, subjectsAPI } from '../../../services/api';
 
 const ChaptersList = () => {
@@ -9,6 +10,7 @@ const ChaptersList = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedChapter, setSelectedChapter] = useState(null);
+
   const [formData, setFormData] = useState({
     subject_id: '',
     name: '',
@@ -169,83 +171,114 @@ const ChaptersList = () => {
 
       {/* Add Chapter Modal */}
       {showAddModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add Chapter</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowAddModal(false)}
-                ></button>
-              </div>
-              <form onSubmit={handleAddChapter}>
-                <div className="modal-body">
-                  <div className="mb-3">
-                    <label htmlFor="subject_id" className="form-label">Subject</label>
-                    <select
-                      className="form-select"
-                      id="subject_id"
-                      name="subject_id"
-                      value={formData.subject_id}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select a subject</option>
-                      {subjects.map(subject => (
-                        <option key={subject._id} value={subject._id}>
-                          {subject.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="name" className="form-label">Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="description" className="form-label">Description</label>
-                    <textarea
-                      className="form-control"
-                      id="description"
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      required
-                    ></textarea>
-                  </div>
-                </div>
-                <div className="modal-footer">
+        <>
+          <div className="modal show d-block" tabIndex="-1" style={{ zIndex: 1050, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="modal-dialog" style={{ margin: 0, maxWidth: '500px', width: '90%' }}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Add Chapter</h5>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn-close"
                     onClick={() => setShowAddModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Add Chapter
-                  </button>
+                  ></button>
                 </div>
-              </form>
+                <form onSubmit={handleAddChapter}>
+                  <div className="modal-body">
+                    <div className="mb-3">
+                      <label htmlFor="subject_id" className="form-label">Subject</label>
+                      <select
+                        className="form-select"
+                        id="subject_id"
+                        name="subject_id"
+                        value={formData.subject_id}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="">Select a subject</option>
+                        {subjects.map(subject => (
+                          <option key={subject._id} value={subject._id}>
+                            {subject.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="name" className="form-label">Name</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <label htmlFor="description" className="form-label">Description</label>
+                      <textarea
+                        className="form-control"
+                        id="description"
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        required
+                      ></textarea>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowAddModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button type="submit" className="btn btn-primary">
+                      Add Chapter
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
+          <div className="modal-backdrop show" style={{ zIndex: 1040, position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }}></div>
+        </>
       )}
 
       {/* Edit Chapter Modal */}
-      {showEditModal && (
-        <div className="modal show d-block" tabIndex="-1">
-          <div className="modal-dialog">
+      {showEditModal && createPortal(
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            zIndex: 9999,
+            paddingTop: '50px',
+            overflowY: 'auto'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEditModal(false);
+            }
+          }}
+        >
+          <div 
+            className="modal-dialog" 
+            style={{ 
+              margin: 0, 
+              maxWidth: '500px', 
+              width: '90%'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-content">
               <div className="modal-header">
                 <h5 className="modal-title">Edit Chapter</h5>
@@ -314,13 +347,11 @@ const ChaptersList = () => {
               </form>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Modal Backdrop */}
-      {(showAddModal || showEditModal) && (
-        <div className="modal-backdrop show"></div>
-      )}
+
     </div>
   );
 };
