@@ -4,7 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -14,16 +14,21 @@ const axiosInstance = axios.create({
 // Add a request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    console.log('Making request:', {
-      method: config.method,
-      url: config.url,
-      headers: config.headers,
-      data: config.data
-    });
+    console.log('=== AXIOS REQUEST DEBUG ===');
+    console.log('Method:', config.method);
+    console.log('URL:', config.url);
+    console.log('Full URL:', config.baseURL + config.url);
+    console.log('Headers:', JSON.stringify(config.headers, null, 2));
+    console.log('Data:', JSON.stringify(config.data, null, 2));
+    console.log('withCredentials:', config.withCredentials);
+    console.log('=== END DEBUG ===');
 
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // Remove Authorization header if no token
+      delete config.headers.Authorization;
     }
     return config;
   },
