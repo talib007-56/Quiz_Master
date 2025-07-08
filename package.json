@@ -1,0 +1,10 @@
+{
+  "name": "quiz-master",
+  "version": "1.0.0",
+  "scripts": {
+    "install:frontend": "cd frontend && npm install",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run install:frontend && npm run build:frontend"
+  },
+  "devDependencies": {}
+} 
