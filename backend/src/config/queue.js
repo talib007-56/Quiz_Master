@@ -3,11 +3,13 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-// Redis connection options
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379
-};
+// Redis connection options - Updated to work with cloud Redis services
+const redisConnection = process.env.REDIS_URL 
+  ? { url: process.env.REDIS_URL }
+  : {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379
+    };
 
 // Create job queues
 const emailQueue = new Queue('email-queue', { connection: redisConnection });
