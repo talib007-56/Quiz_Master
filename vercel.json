@@ -9,10 +9,21 @@
       }
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/frontend/dist/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/frontend/dist/static/$1"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/frontend/dist/assets/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/index.html"
     }
   ]
 } 
