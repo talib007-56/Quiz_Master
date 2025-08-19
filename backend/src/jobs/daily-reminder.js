@@ -5,13 +5,22 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Configure email transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+const createTransporter = () => {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.error('❌ Email credentials not configured! Please set SMTP_USER and SMTP_PASS in .env file');
+    throw new Error('Email credentials not configured');
   }
-});
+
+  return nodemailer.createTransporter({
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: process.env.SMTP_PORT || 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
+};
 
 // Send Google Chat notification
 const sendGoogleChatNotification = async (message) => {
@@ -70,8 +79,9 @@ const sendDailyReminders = async () => {
 
     // Send email reminders
     for (const user of inactiveUsers) {
+      const transporter = createTransporter();
       const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: process.env.SMTP_USER,
         to: user.email,
         subject: 'Quiz Master - We miss you!',
         html: `
