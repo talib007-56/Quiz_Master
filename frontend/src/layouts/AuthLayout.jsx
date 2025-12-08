@@ -5,10 +5,10 @@ const AuthLayout = () => {
     <div className="container-fluid">
       <div className="row vh-100">
         {/* Left side - Image/branding */}
-        <div className="col-md-6 d-flex align-items-center justify-content-center bg-primary">
+        <div className="col-md-6 d-flex align-items-center justify-content-center btn btn-success">
           <div className="text-center text-white">
-            <h1 className="display-3 fw-bold mb-4">Quiz Master</h1>
-            <p className="lead">Test your knowledge and track your progress with our interactive quizzes</p>
+            <h1 className="display-2 fw-bold mb-4">GyaanX</h1>
+            <p className="lead">Test your knowledge,Upgrade skills and Upgrade potential</p>
           </div>
         </div>
         

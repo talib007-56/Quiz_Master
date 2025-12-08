@@ -195,7 +195,7 @@ const AdminLayout = () => {
                   letterSpacing: '-0.02em',
                   lineHeight: '1.2'
                 }}>
-                  Quiz Master
+                  GyaanX
                 </h3>
                 <p style={{ 
                   margin: '2px 0 0 0', 

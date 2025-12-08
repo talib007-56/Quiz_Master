@@ -126,7 +126,7 @@ const UserLayout = () => {
                   <i className="bi bi-mortarboard-fill text-primary fs-5"></i>
                 </div>
                 <div>
-                  <h5 className="mb-0 text-white fw-bold">Quiz Master</h5>
+                  <h5 className="mb-0 text-white fw-bold">GyaanX</h5>
                   <small className="text-light">Learning Platform</small>
                 </div>
               </div>
@@ -245,8 +245,8 @@ const UserLayout = () => {
                 <i className={`bi ${sidebarOpen ? 'bi-x-lg' : 'bi-list'}`}></i>
               </button>
               <div>
-                <h2 className="mb-0 text-primary fw-bold">Quiz Master</h2>
-                <small className='text-secondary p-1 rounded-pill bg-light'>Let's Learn</small>
+                <h2 className="mb-0 text-primary fw-bold">GyaanX</h2>
+                <small className='text-secondary p-1 rounded-pill bg-light'>Upgrade skills,Upgrade potential</small>
               </div>
             </div>
 

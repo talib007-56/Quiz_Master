@@ -50,7 +50,7 @@ const Login = () => {
   
   return (
     <div>
-      <h2 className="text-center mb-4">Log In to Quiz Master</h2>
+      <h2 className="text-center mb-4">Log In to GyaanX</h2>
       
       {error && <div className="alert alert-danger">{error}</div>}
       
@@ -83,7 +83,7 @@ const Login = () => {
         
         <button 
           type="submit" 
-          className="btn btn-primary w-100 mb-3"
+          className="btn btn-secondary w-100 mb-3"
           disabled={loading}
         >
           {loading ? (

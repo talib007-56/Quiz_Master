@@ -2513,7 +2513,7 @@ const AdminDashboard = () => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>
-              Quiz Master
+              GyaanX
             </h1>
             
             <div style={{
