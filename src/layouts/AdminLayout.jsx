@@ -195,11 +195,11 @@ const AdminLayout = () => {
                   letterSpacing: '-0.02em',
                   lineHeight: '1.2'
                 }}>
-                  Quiz Master
+                  BCA Quest
                 </h3>
-                <p style={{ 
-                  margin: '2px 0 0 0', 
-                  fontSize: '14px', 
+                <p style={{
+                  margin: '2px 0 0 0',
+                  fontSize: '14px',
                   color: '#64748b',
                   fontWeight: '600',
                   letterSpacing: '0.02em'
@@ -626,7 +626,7 @@ const AdminLayout = () => {
                 fontWeight: '500',
                 letterSpacing: '0.01em'
               }}>
-                Manage your quiz application with ease
+                BCA Quest — AI-Powered Exam Preparation
               </p>
             </div>
           </div>
@@ -716,7 +716,7 @@ const AdminLayout = () => {
                           {currentUser?.full_name || 'Administrator'}
                         </div>
                         <div className="text-muted small" style={{ fontSize: '13px', color: '#64748b' }}>
-                          {currentUser?.email || 'admin@quizmaster.com'}
+                          {currentUser?.email || 'admin@bcaquest.com'}
                         </div>
                     </div>
                   </div>

@@ -129,6 +129,12 @@ export const notificationAPI = {
   testEmail: (email) => api.post('/notifications/test-email', { email })
 };
 
+// AI API calls (BCA Quest AI features)
+export const aiAPI = {
+  explainAnswer: (data) => api.post('/ai/explain', data),
+  generateQuestions: (data) => api.post('/ai/generate-questions', data)
+};
+
 // Helper function to download CSV files
 export const downloadCSV = (data, filename) => {
   const url = window.URL.createObjectURL(new Blob([data]));

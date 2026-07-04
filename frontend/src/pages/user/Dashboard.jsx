@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { subjectsAPI, scoresAPI, quizzesAPI, questionsAPI, chaptersAPI } from '../../services/api';
+import { subjectsAPI, scoresAPI, quizzesAPI, questionsAPI, chaptersAPI, aiAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -286,7 +286,10 @@ const UserDashboard = () => {
   const [timer, setTimer] = useState(null);
   const [showQuizView, setShowQuizView] = useState(false);
   const [selectedQuizView, setSelectedQuizView] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Add submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [semesterFilter, setSemesterFilter] = useState('');
+  const [aiExplanation, setAiExplanation] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Memoized handlers to prevent input focus loss
   const handleSearchChange = useCallback((value) => {
@@ -559,6 +562,7 @@ const UserDashboard = () => {
   };
 
   const handleAnswerSelect = (questionId, optionIndex) => {
+    setAiExplanation(null);
     setAnswers(prev => ({
       ...prev,
       [questionId]: optionIndex
@@ -567,7 +571,27 @@ const UserDashboard = () => {
 
   const handleSaveAndNext = () => {
     if (currentQuestionIndex < getQuestionsByQuiz(currentQuiz._id).length - 1) {
+      setAiExplanation(null);
       setCurrentQuestionIndex(prev => prev + 1);
+    }
+  };
+
+  const handleGetExplanation = async (question, chapter, subject) => {
+    setAiLoading(true);
+    setAiExplanation(null);
+    try {
+      const res = await aiAPI.explainAnswer({
+        questionStatement: question.question_statement,
+        options: [question.option1, question.option2, question.option3, question.option4],
+        correctOption: question.correct_option,
+        subject: subject?.name || '',
+        chapter: chapter?.name || ''
+      });
+      setAiExplanation(res.data.explanation);
+    } catch {
+      setAiExplanation('Could not get AI explanation. Please try again.');
+    } finally {
+      setAiLoading(false);
     }
   };
 
@@ -757,10 +781,55 @@ const UserDashboard = () => {
       return false;
     });
 
-    const availableQuizzes = searchTerm ? filteredQuizzes : allAvailableQuizzes;
+    // Apply semester filter
+    const semesterFilteredQuizzes = semesterFilter
+      ? (searchTerm ? filteredQuizzes : allAvailableQuizzes).filter(quiz => {
+          let chapter = null;
+          if (quiz && quiz.chapter_id && Array.isArray(chapters)) {
+            chapter = chapters.find(c => {
+              if (!c || !c._id) return false;
+              const chapterId = typeof quiz.chapter_id === 'object' && quiz.chapter_id !== null
+                ? quiz.chapter_id._id || quiz.chapter_id.id : quiz.chapter_id;
+              return String(c._id) === String(chapterId);
+            });
+          }
+          if (!chapter) return false;
+          const subject = subjects.find(s => {
+            const subjectId = typeof chapter.subject_id === 'object' && chapter.subject_id !== null
+              ? chapter.subject_id._id || chapter.subject_id.id : chapter.subject_id;
+            return String(s._id) === String(subjectId);
+          });
+          return subject?.semester === parseInt(semesterFilter);
+        })
+      : (searchTerm ? filteredQuizzes : allAvailableQuizzes);
+
+    const availableQuizzes = semesterFilteredQuizzes;
+
+    // Get unique semesters from subjects
+    const availableSemesters = [...new Set(subjects.filter(s => s.semester).map(s => s.semester))].sort((a, b) => a - b);
 
     return (
       <div className="container-fluid">
+
+        {/* Semester Filter Bar */}
+        <div className="d-flex align-items-center gap-2 mb-4 flex-wrap">
+          <span className="fw-semibold text-muted me-1"><i className="bi bi-filter me-1"></i>Semester:</span>
+          <button
+            className={`btn btn-sm ${semesterFilter === '' ? 'btn-primary' : 'btn-outline-primary'}`}
+            onClick={() => setSemesterFilter('')}
+          >
+            All
+          </button>
+          {availableSemesters.map(sem => (
+            <button
+              key={sem}
+              className={`btn btn-sm ${semesterFilter === String(sem) ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setSemesterFilter(String(sem))}
+            >
+              Sem {sem}
+            </button>
+          ))}
+        </div>
 
         {/* New Questions Available Notification */}
         {(() => {
@@ -1056,7 +1125,8 @@ const UserDashboard = () => {
     const quizQuestions = getQuestionsByQuiz(currentQuiz._id);
     const currentQuestion = quizQuestions[currentQuestionIndex];
     const chapter = getChapterById(currentQuiz.chapter_id);
-    
+    const subject = chapter ? getSubjectById(chapter.subject_id) : null;
+
     return (
       <div style={{
         border: '2px solid #000',
@@ -1185,21 +1255,14 @@ const UserDashboard = () => {
         </div>
 
         {/* Action Buttons */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          gap: '20px'
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
           <button
             onClick={handleSaveAndNext}
             disabled={currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting}
             style={{
               backgroundColor: (currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting) ? '#f0f0f0' : '#cce5ff',
-              border: '2px solid #007bff',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              fontSize: '16px',
-              fontWeight: 'bold',
+              border: '2px solid #007bff', borderRadius: '8px', padding: '10px 20px',
+              fontSize: '16px', fontWeight: 'bold',
               cursor: (currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting) ? 'not-allowed' : 'pointer',
               opacity: (currentQuestionIndex >= quizQuestions.length - 1 || isSubmitting) ? 0.6 : 1
             }}
@@ -1211,11 +1274,8 @@ const UserDashboard = () => {
             disabled={isSubmitting}
             style={{
               backgroundColor: isSubmitting ? '#f0f0f0' : '#d4edda',
-              border: '2px solid #28a745',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              fontSize: '16px',
-              fontWeight: 'bold',
+              border: '2px solid #28a745', borderRadius: '8px', padding: '10px 20px',
+              fontSize: '16px', fontWeight: 'bold',
               cursor: isSubmitting ? 'not-allowed' : 'pointer',
               color: isSubmitting ? '#666' : '#28a745',
               opacity: isSubmitting ? 0.6 : 1
@@ -1223,7 +1283,42 @@ const UserDashboard = () => {
           >
             {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
           </button>
+          <button
+            onClick={() => currentQuestion && handleGetExplanation(currentQuestion, chapter, subject)}
+            disabled={aiLoading || !currentQuestion}
+            style={{
+              backgroundColor: aiLoading ? '#f0f0f0' : '#fff3cd',
+              border: '2px solid #ffc107', borderRadius: '8px', padding: '10px 20px',
+              fontSize: '16px', fontWeight: 'bold',
+              cursor: (aiLoading || !currentQuestion) ? 'not-allowed' : 'pointer',
+              color: '#856404',
+              opacity: (aiLoading || !currentQuestion) ? 0.6 : 1
+            }}
+          >
+            {aiLoading ? '⏳ Loading...' : '🤖 AI Explain'}
+          </button>
         </div>
+
+        {/* AI Explanation Panel */}
+        {(aiExplanation || aiLoading) && (
+          <div style={{
+            marginTop: '25px', border: '2px solid #ffc107', borderRadius: '10px',
+            padding: '20px', backgroundColor: '#fffbf0', textAlign: 'left'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <span style={{ fontSize: '20px', marginRight: '8px' }}>🤖</span>
+              <strong style={{ color: '#856404' }}>AI Explanation — BCA Quest</strong>
+              <button onClick={() => setAiExplanation(null)}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#856404' }}>
+                ✕
+              </button>
+            </div>
+            {aiLoading
+              ? <p style={{ color: '#856404', fontStyle: 'italic' }}>Generating explanation...</p>
+              : <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7', color: '#333' }}>{aiExplanation}</div>
+            }
+          </div>
+        )}
       </div>
     );
   };
@@ -1560,8 +1655,88 @@ const UserDashboard = () => {
       }]
     };
 
+    // Calculate subject-wise accuracy for weak area detection
+    const getSubjectAccuracy = () => {
+      const subjectStats = {};
+      userScores.forEach(score => {
+        if (!score.quiz_id) return;
+        const quiz = upcomingQuizzes.find(q => {
+          const scoreQuizId = typeof score.quiz_id === 'object' ? score.quiz_id._id || score.quiz_id.id : score.quiz_id;
+          return String(q._id) === String(scoreQuizId);
+        });
+        if (!quiz) return;
+        const chapter = getChapterById(quiz.chapter_id);
+        if (!chapter) return;
+        const subject = getSubjectById(chapter.subject_id);
+        if (!subject) return;
+        if (!subjectStats[subject.name]) subjectStats[subject.name] = { correct: 0, total: 0 };
+        const quizQs = getQuestionsByQuiz(quiz._id);
+        const total = quizQs.length || score.answers?.length || 0;
+        subjectStats[subject.name].correct += score.total_scored || 0;
+        subjectStats[subject.name].total += total;
+      });
+      return Object.entries(subjectStats).map(([name, s]) => ({
+        name,
+        accuracy: s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0
+      })).sort((a, b) => a.accuracy - b.accuracy);
+    };
+
+    const subjectAccuracy = getSubjectAccuracy();
+    const weakAreas = subjectAccuracy.filter(s => s.accuracy < 60);
+    const strongAreas = subjectAccuracy.filter(s => s.accuracy >= 60);
+
     return (
       <div>
+        {/* Weak Areas / Strong Areas Panel */}
+        {subjectAccuracy.length > 0 && (
+          <div className="row g-3 mb-4">
+            {weakAreas.length > 0 && (
+              <div className="col-md-6">
+                <div className="card border-danger border-2">
+                  <div className="card-header bg-danger text-white fw-bold">
+                    <i className="bi bi-exclamation-triangle me-2"></i>Needs Improvement (below 60%)
+                  </div>
+                  <ul className="list-group list-group-flush">
+                    {weakAreas.map(s => (
+                      <li key={s.name} className="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{s.name}</span>
+                        <div className="d-flex align-items-center gap-2">
+                          <div className="progress" style={{ width: 100, height: 8 }}>
+                            <div className="progress-bar bg-danger" style={{ width: `${s.accuracy}%` }} />
+                          </div>
+                          <span className="badge bg-danger">{s.accuracy}%</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+            {strongAreas.length > 0 && (
+              <div className="col-md-6">
+                <div className="card border-success border-2">
+                  <div className="card-header bg-success text-white fw-bold">
+                    <i className="bi bi-trophy me-2"></i>Strong Areas (60% and above)
+                  </div>
+                  <ul className="list-group list-group-flush">
+                    {strongAreas.map(s => (
+                      <li key={s.name} className="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{s.name}</span>
+                        <div className="d-flex align-items-center gap-2">
+                          <div className="progress" style={{ width: 100, height: 8 }}>
+                            <div className="progress-bar bg-success" style={{ width: `${s.accuracy}%` }} />
+                          </div>
+                          <span className="badge bg-success">{s.accuracy}%</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '30px' }}>
           {/* Subject-wise Attempts */}
           <div style={{

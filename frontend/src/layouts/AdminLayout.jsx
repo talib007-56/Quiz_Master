@@ -716,7 +716,7 @@ const AdminLayout = () => {
                           {currentUser?.full_name || 'Administrator'}
                         </div>
                         <div className="text-muted small" style={{ fontSize: '13px', color: '#64748b' }}>
-                          {currentUser?.email || 'admin@quizmaster.com'}
+                          {currentUser?.email || 'admin@bcaquest.com'}
                         </div>
                     </div>
                   </div>

@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
 });
 
 // Import route files with try-catch blocks
-let authRoutes, subjectRoutes, chapterRoutes, quizRoutes, questionRoutes, scoreRoutes, userRoutes, exportRoutes, notificationRoutes;
+let authRoutes, subjectRoutes, chapterRoutes, quizRoutes, questionRoutes, scoreRoutes, userRoutes, exportRoutes, notificationRoutes, aiRoutes;
 
 try {
   authRoutes = require('./routes/auth.routes');
@@ -115,6 +115,13 @@ try {
   console.error('Failed to load notification routes:', err);
 }
 
+try {
+  aiRoutes = require('./routes/ai.routes');
+  console.log('AI routes loaded successfully');
+} catch (err) {
+  console.error('Failed to load AI routes:', err);
+}
+
 // Use routes with explicit paths
 if (authRoutes) app.use('/api/auth', authRoutes);
 if (subjectRoutes) app.use('/api/subjects', subjectRoutes);
@@ -125,6 +132,7 @@ if (scoreRoutes) app.use('/api/scores', scoreRoutes);
 if (userRoutes) app.use('/api/users', userRoutes);
 if (exportRoutes) app.use('/api/export', exportRoutes);
 if (notificationRoutes) app.use('/api/notifications', notificationRoutes);
+if (aiRoutes) app.use('/api/ai', aiRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

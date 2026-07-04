@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { subjectsAPI, scoresAPI, quizzesAPI, questionsAPI, chaptersAPI } from '../../services/api';
+import { subjectsAPI, scoresAPI, quizzesAPI, questionsAPI, chaptersAPI, aiAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Chart as ChartJS, ArcElement, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
 import { Pie, Bar } from 'react-chartjs-2';
@@ -286,7 +286,9 @@ const UserDashboard = () => {
   const [timer, setTimer] = useState(null);
   const [showQuizView, setShowQuizView] = useState(false);
   const [selectedQuizView, setSelectedQuizView] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Add submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Memoized handlers to prevent input focus loss
   const handleSearchChange = useCallback((value) => {
@@ -559,14 +561,35 @@ const UserDashboard = () => {
   };
 
   const handleAnswerSelect = (questionId, optionIndex) => {
+    setAiExplanation(null);
     setAnswers(prev => ({
       ...prev,
       [questionId]: optionIndex
     }));
   };
 
+  const handleGetExplanation = async (question, chapter, subject) => {
+    setAiLoading(true);
+    setAiExplanation(null);
+    try {
+      const response = await aiAPI.explainAnswer({
+        questionStatement: question.question_statement,
+        options: [question.option1, question.option2, question.option3, question.option4],
+        correctOption: question.correct_option,
+        subject: subject?.name || '',
+        chapter: chapter?.name || ''
+      });
+      setAiExplanation(response.data.explanation);
+    } catch (error) {
+      setAiExplanation('Failed to get AI explanation. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleSaveAndNext = () => {
     if (currentQuestionIndex < getQuestionsByQuiz(currentQuiz._id).length - 1) {
+      setAiExplanation(null);
       setCurrentQuestionIndex(prev => prev + 1);
     }
   };
@@ -1056,6 +1079,7 @@ const UserDashboard = () => {
     const quizQuestions = getQuestionsByQuiz(currentQuiz._id);
     const currentQuestion = quizQuestions[currentQuestionIndex];
     const chapter = getChapterById(currentQuiz.chapter_id);
+    const subject = chapter ? getSubjectById(chapter.subject_id) : null;
     
     return (
       <div style={{
@@ -1188,7 +1212,8 @@ const UserDashboard = () => {
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          gap: '20px'
+          gap: '20px',
+          flexWrap: 'wrap'
         }}>
           <button
             onClick={handleSaveAndNext}
@@ -1223,7 +1248,59 @@ const UserDashboard = () => {
           >
             {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
           </button>
+          <button
+            onClick={() => currentQuestion && handleGetExplanation(currentQuestion, chapter, subject)}
+            disabled={aiLoading || !currentQuestion}
+            style={{
+              backgroundColor: aiLoading ? '#f0f0f0' : '#fff3cd',
+              border: '2px solid #ffc107',
+              borderRadius: '8px',
+              padding: '10px 20px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              cursor: (aiLoading || !currentQuestion) ? 'not-allowed' : 'pointer',
+              color: '#856404',
+              opacity: (aiLoading || !currentQuestion) ? 0.6 : 1
+            }}
+          >
+            {aiLoading ? '⏳ Getting Explanation...' : '🤖 AI Explain'}
+          </button>
         </div>
+
+        {/* AI Explanation Panel */}
+        {(aiExplanation || aiLoading) && (
+          <div style={{
+            marginTop: '25px',
+            border: '2px solid #ffc107',
+            borderRadius: '10px',
+            padding: '20px',
+            backgroundColor: '#fffbf0',
+            textAlign: 'left'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '20px', marginRight: '8px' }}>🤖</span>
+              <strong style={{ color: '#856404', fontSize: '16px' }}>AI Explanation (BCA Quest)</strong>
+              <button
+                onClick={() => setAiExplanation(null)}
+                style={{
+                  marginLeft: 'auto',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  color: '#856404'
+                }}
+              >✕</button>
+            </div>
+            {aiLoading ? (
+              <div style={{ color: '#856404', fontStyle: 'italic' }}>Generating explanation...</div>
+            ) : (
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#333' }}>
+                {aiExplanation}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };

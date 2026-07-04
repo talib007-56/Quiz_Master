@@ -58,8 +58,9 @@ const UserLayout = () => {
   const getPageTitle = () => {
     if (location.pathname === '/user') return 'Dashboard';
     if (location.pathname === '/user/subjects') return 'Subjects';
+    if (location.pathname === '/user/practice') return 'AI Practice';
     if (location.pathname === '/user/profile') return 'My Profile';
-    return 'Quiz Master';
+    return 'BCA Quest';
   };
 
   const getLinkStyle = (linkPath, isActive) => {
@@ -178,7 +179,25 @@ const UserLayout = () => {
                   <span>Subjects</span>
                 </NavLink>
               </li>
-              
+
+              <li className="nav-item mb-2">
+                <NavLink
+                  to="/user/practice"
+                  className={({isActive}) =>
+                    `nav-link user-nav-link d-flex align-items-center p-3 rounded text-decoration-none ${
+                      isActive ? 'text-white' : 'text-light'
+                    }`
+                  }
+                  style={({isActive}) => getLinkStyle('/user/practice', isActive)}
+                  onMouseEnter={() => setHoveredLink('/user/practice')}
+                  onMouseLeave={() => setHoveredLink(null)}
+                  onClick={() => isMobile && setSidebarOpen(false)}
+                >
+                  <i className="bi bi-robot me-3 fs-5"></i>
+                  <span>AI Practice</span>
+                </NavLink>
+              </li>
+
               <li className="nav-item mb-2">
                 <NavLink
                   to="/user/profile"

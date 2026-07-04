@@ -10,7 +10,8 @@ const SubjectsList = () => {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    semester: ''
   });
 
   // Fetch subjects
@@ -45,7 +46,7 @@ const SubjectsList = () => {
     try {
       await subjectsAPI.create(formData);
       setShowAddModal(false);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', semester: '' });
       fetchSubjects();
     } catch (error) {
       setError('Failed to add subject');
@@ -59,7 +60,7 @@ const SubjectsList = () => {
       await subjectsAPI.update(selectedSubject._id, formData);
       setShowEditModal(false);
       setSelectedSubject(null);
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', semester: '' });
       fetchSubjects();
     } catch (error) {
       setError('Failed to update subject');
@@ -83,7 +84,8 @@ const SubjectsList = () => {
     setSelectedSubject(subject);
     setFormData({
       name: subject.name,
-      description: subject.description
+      description: subject.description,
+      semester: subject.semester || ''
     });
     setShowEditModal(true);
   };
@@ -121,6 +123,7 @@ const SubjectsList = () => {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Semester</th>
               <th>Description</th>
               <th>Created At</th>
               <th>Actions</th>
@@ -130,6 +133,12 @@ const SubjectsList = () => {
             {subjects.map(subject => (
               <tr key={subject._id}>
                 <td>{subject.name}</td>
+                <td>
+                  {subject.semester
+                    ? <span className="badge bg-primary">Sem {subject.semester}</span>
+                    : <span className="text-muted">—</span>
+                  }
+                </td>
                 <td>{subject.description}</td>
                 <td>{new Date(subject.created_at).toLocaleDateString()}</td>
                 <td>
@@ -178,6 +187,21 @@ const SubjectsList = () => {
                       onChange={handleInputChange}
                       required
                     />
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="semester" className="form-label">BCA Semester</label>
+                    <select
+                      className="form-select"
+                      id="semester"
+                      name="semester"
+                      value={formData.semester}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Select Semester (optional)</option>
+                      {[1,2,3,4,5,6].map(s => (
+                        <option key={s} value={s}>Semester {s}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="mb-3">
                     <label htmlFor="description" className="form-label">Description</label>
@@ -235,6 +259,21 @@ const SubjectsList = () => {
                       onChange={handleInputChange}
                       required
                     />
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="edit-semester" className="form-label">BCA Semester</label>
+                    <select
+                      className="form-select"
+                      id="edit-semester"
+                      name="semester"
+                      value={formData.semester}
+                      onChange={handleInputChange}
+                    >
+                      <option value="">Select Semester (optional)</option>
+                      {[1,2,3,4,5,6].map(s => (
+                        <option key={s} value={s}>Semester {s}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="mb-3">
                     <label htmlFor="edit-description" className="form-label">Description</label>

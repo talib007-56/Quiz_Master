@@ -37,7 +37,7 @@ const AdminProfile = () => {
     if (currentUser) {
       const userData = {
         full_name: currentUser.full_name || 'Administrator',
-        email: currentUser.email || 'admin@quizmaster.com',
+        email: currentUser.email || 'admin@bcaquest.com',
         phone: currentUser.phone || '',
         department: currentUser.department || '',
         bio: currentUser.bio || '',

@@ -32,6 +32,7 @@ import AttemptQuiz from './pages/user/quizzes/AttemptQuiz';
 import QuizResults from './pages/user/quizzes/QuizResults';
 import QuizReview from './pages/user/quizzes/QuizReview';
 import UserProfile from './pages/user/Profile';
+import PracticeSession from './pages/user/practice/PracticeSession';
 
 // Context
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -112,6 +113,7 @@ function App() {
             <Route path="quiz/:quizId/attempt" element={<AttemptQuiz />} />
             <Route path="quiz/:quizId/results" element={<QuizResults />} />
             <Route path="quiz-review/:scoreId" element={<QuizReview />} />
+            <Route path="practice" element={<PracticeSession />} />
             <Route path="profile" element={<UserProfile />} />
           </Route>
           

@@ -50,7 +50,7 @@ const Login = () => {
   
   return (
     <div>
-      <h2 className="text-center mb-4">Log In to Quiz Master</h2>
+      <h2 className="text-center mb-4">Log In to BCA Quest</h2>
       
       {error && <div className="alert alert-danger">{error}</div>}
       

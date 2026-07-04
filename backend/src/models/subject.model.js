@@ -10,6 +10,12 @@ const subjectSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  semester: {
+    type: Number,
+    min: 1,
+    max: 6,
+    default: null
+  },
   created_at: {
     type: Date,
     default: Date.now

@@ -2513,7 +2513,7 @@ const AdminDashboard = () => {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
             }}>
-              Quiz Master
+              BCA Quest
             </h1>
             
             <div style={{

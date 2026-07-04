@@ -7,8 +7,8 @@ const AuthLayout = () => {
         {/* Left side - Image/branding */}
         <div className="col-md-6 d-flex align-items-center justify-content-center btn btn-success">
           <div className="text-center text-white">
-            <h1 className="display-2 fw-bold mb-4">GyaanX</h1>
-            <p className="lead">Test your knowledge,Upgrade skills and Upgrade potential</p>
+            <h1 className="display-2 fw-bold mb-4">BCA Quest</h1>
+            <p className="lead"> An AI-Powered Exam Preparation App</p>
           </div>
         </div>
         
