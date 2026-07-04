@@ -24,8 +24,12 @@ app.use((req, res, next) => {
     : ['http://localhost:5173'];
   
   const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin)) {
+
+  // Allow explicit origins from FRONTEND_URL, plus any Vercel preview
+  // deployment of this project (random subdomains per deploy)
+  const isVercelPreview = origin && /^https:\/\/quiz-master-[a-z0-9-]+\.vercel\.app$/.test(origin);
+
+  if (allowedOrigins.includes(origin) || isVercelPreview) {
     res.header('Access-Control-Allow-Origin', origin);
   }
   
